@@ -1,5 +1,10 @@
 --!strict
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"))
+local CombatController = require(script.CombatController)
+local VFXController = require(script.VFXController)
+local UIController = require(script.UIController)
 
-print("[Client] Destruction Game client initialized.")
+CombatController.Init()
+VFXController.Init()
+UIController.Init()
+
+print("[Client] Destruction Game client fully initialized!")

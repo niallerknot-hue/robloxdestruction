@@ -458,7 +458,7 @@ local function buildFarm(farmCenter: CFrame)
 			Vector3.new(4, 3, 3),
 			farmCenter * CFrame.new(xOff, 1.5, zOff),
 			Color3.fromRGB(220, 185, 80),
-			Enum.Material.Hay,
+			Enum.Material.Fabric,
 			"HayBale",
 			35,
 			10,

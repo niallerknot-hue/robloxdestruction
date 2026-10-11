@@ -17,7 +17,8 @@ pcall(function()
 	playerDataStore = DataStoreService:GetDataStore("DestructionVillagePlayerData_v1")
 end)
 
-local sessionData: { [Player]: Types.PlayerData } = {}
+local sessionData: { [number]: Types.PlayerData } = (shared :: any).DestructionSessionData or {}
+(shared :: any).DestructionSessionData = sessionData
 
 local function getDefaultData(): Types.PlayerData
 	return {
@@ -42,7 +43,7 @@ local function getDefaultData(): Types.PlayerData
 end
 
 local function syncToClient(player: Player)
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data then return end
 
 	local syncRemote = ReplicatedStorage:FindFirstChild(Constants.Remotes.SyncInventory) :: RemoteEvent?
@@ -72,19 +73,28 @@ end
 function EconomyManager.Init()
 	-- Create Leaderstats and load profile on player join
 	local function onPlayerAdded(player: Player)
-		local leaderstats = Instance.new("Folder")
-		leaderstats.Name = "leaderstats"
-		leaderstats.Parent = player
+		local leaderstats = player:FindFirstChild("leaderstats")
+		if not leaderstats then
+			leaderstats = Instance.new("Folder")
+			leaderstats.Name = "leaderstats"
+			leaderstats.Parent = player
+		end
 
-		local dollarsVal = Instance.new("IntValue")
-		dollarsVal.Name = "Dollars"
-		dollarsVal.Value = 0
-		dollarsVal.Parent = leaderstats
+		local dollarsVal = leaderstats:FindFirstChild("Dollars") :: IntValue?
+		if not dollarsVal then
+			dollarsVal = Instance.new("IntValue")
+			dollarsVal.Name = "Dollars"
+			dollarsVal.Value = 0
+			dollarsVal.Parent = leaderstats
+		end
 
-		local destroyedVal = Instance.new("IntValue")
-		destroyedVal.Name = "Destroyed"
-		destroyedVal.Value = 0
-		destroyedVal.Parent = leaderstats
+		local destroyedVal = leaderstats:FindFirstChild("Destroyed") :: IntValue?
+		if not destroyedVal then
+			destroyedVal = Instance.new("IntValue")
+			destroyedVal.Name = "Destroyed"
+			destroyedVal.Value = 0
+			destroyedVal.Parent = leaderstats
+		end
 
 		local loadedData: Types.PlayerData = getDefaultData()
 
@@ -94,7 +104,6 @@ function EconomyManager.Init()
 				return playerDataStore:GetAsync(key)
 			end)
 			if success and result and type(result) == "table" then
-				-- Merge saved fields
 				loadedData.Dollars = result.Dollars or loadedData.Dollars
 				loadedData.EquippedWeapon = result.EquippedWeapon or loadedData.EquippedWeapon
 				loadedData.EquippedSkin = result.EquippedSkin or loadedData.EquippedSkin
@@ -117,19 +126,19 @@ function EconomyManager.Init()
 		-- Ensure starter weapon is owned
 		loadedData.OwnedWeapons["sledgehammer"] = true
 
-		sessionData[player] = loadedData
+		sessionData[player.UserId] = loadedData
 		syncToClient(player)
 	end
 
 	local function onPlayerRemoving(player: Player)
-		local data = sessionData[player]
+		local data = sessionData[player.UserId]
 		if data and playerDataStore then
 			local key = DATA_KEY_PREFIX .. tostring(player.UserId)
 			pcall(function()
 				playerDataStore:SetAsync(key, data)
 			end)
 		end
-		sessionData[player] = nil
+		sessionData[player.UserId] = nil
 	end
 
 	Players.PlayerAdded:Connect(onPlayerAdded)
@@ -140,9 +149,9 @@ function EconomyManager.Init()
 	end
 
 	game:BindToClose(function()
-		for player, data in sessionData do
+		for userId, data in sessionData do
 			if playerDataStore then
-				local key = DATA_KEY_PREFIX .. tostring(player.UserId)
+				local key = DATA_KEY_PREFIX .. tostring(userId)
 				pcall(function()
 					playerDataStore:SetAsync(key, data)
 				end)
@@ -154,11 +163,11 @@ function EconomyManager.Init()
 end
 
 function EconomyManager.GetPlayerData(player: Player): Types.PlayerData?
-	return sessionData[player]
+	return sessionData[player.UserId]
 end
 
 function EconomyManager.AddDollars(player: Player, amount: number)
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data or amount <= 0 then return end
 
 	data.Dollars += amount
@@ -167,7 +176,7 @@ function EconomyManager.AddDollars(player: Player, amount: number)
 end
 
 function EconomyManager.SpendDollars(player: Player, amount: number): boolean
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data or data.Dollars < amount or amount < 0 then
 		return false
 	end
@@ -178,14 +187,14 @@ function EconomyManager.SpendDollars(player: Player, amount: number): boolean
 end
 
 function EconomyManager.RecordDestroyedObject(player: Player, count: number?)
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data then return end
 	data.Stats.TotalDestroyed += (count or 1)
 	syncToClient(player)
 end
 
 function EconomyManager.UnlockWeapon(player: Player, weaponId: string): boolean
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data then return false end
 	data.OwnedWeapons[weaponId] = true
 	syncToClient(player)
@@ -193,7 +202,7 @@ function EconomyManager.UnlockWeapon(player: Player, weaponId: string): boolean
 end
 
 function EconomyManager.UnlockSkin(player: Player, skinId: string): boolean
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data then return false end
 	data.OwnedSkins[skinId] = true
 	syncToClient(player)
@@ -201,7 +210,7 @@ function EconomyManager.UnlockSkin(player: Player, skinId: string): boolean
 end
 
 function EconomyManager.UnlockAura(player: Player, auraId: string): boolean
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data then return false end
 	data.OwnedAuras[auraId] = true
 	syncToClient(player)
@@ -209,7 +218,7 @@ function EconomyManager.UnlockAura(player: Player, auraId: string): boolean
 end
 
 function EconomyManager.EquipWeapon(player: Player, weaponId: string): boolean
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data or not data.OwnedWeapons[weaponId] then return false end
 	data.EquippedWeapon = weaponId
 	syncToClient(player)
@@ -217,7 +226,7 @@ function EconomyManager.EquipWeapon(player: Player, weaponId: string): boolean
 end
 
 function EconomyManager.EquipSkin(player: Player, skinId: string): boolean
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data or not data.OwnedSkins[skinId] then return false end
 	data.EquippedSkin = skinId
 	syncToClient(player)
@@ -225,7 +234,7 @@ function EconomyManager.EquipSkin(player: Player, skinId: string): boolean
 end
 
 function EconomyManager.EquipAura(player: Player, auraId: string): boolean
-	local data = sessionData[player]
+	local data = sessionData[player.UserId]
 	if not data or not data.OwnedAuras[auraId] then return false end
 	data.EquippedAura = auraId
 	syncToClient(player)

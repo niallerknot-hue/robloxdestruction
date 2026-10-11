@@ -373,6 +373,7 @@ function UIController.Init()
 
 	-- Top Dollars Card
 	local dollarsCard = Instance.new("Frame")
+	dollarsCard.Name = "DollarsCard"
 	dollarsCard.Size = UDim2.new(0, 210, 0, 52)
 	dollarsCard.Position = UDim2.new(0, 24, 0, 24)
 	dollarsCard.BackgroundColor3 = Color3.fromRGB(25, 27, 34)
@@ -389,6 +390,7 @@ function UIController.Init()
 	stroke.Parent = dollarsCard
 
 	dollarsLabel = Instance.new("TextLabel")
+	dollarsLabel.Name = "DollarsLabel"
 	dollarsLabel.Size = UDim2.new(1, -20, 1, 0)
 	dollarsLabel.Position = UDim2.new(0, 10, 0, 0)
 	dollarsLabel.BackgroundTransparency = 1
@@ -401,6 +403,7 @@ function UIController.Init()
 
 	-- Open Store Button
 	local storeBtn = Instance.new("TextButton")
+	storeBtn.Name = "StoreButton"
 	storeBtn.Size = UDim2.new(0, 130, 0, 48)
 	storeBtn.Position = UDim2.new(0, 24, 0, 88)
 	storeBtn.BackgroundColor3 = Color3.fromRGB(240, 150, 20)
@@ -417,6 +420,7 @@ function UIController.Init()
 
 	-- Store Modal Frame
 	storeModal = Instance.new("Frame")
+	storeModal.Name = "StoreModal"
 	storeModal.Size = UDim2.new(0, 560, 0, 460)
 	storeModal.Position = UDim2.new(0.5, -280, 0.5, -230)
 	storeModal.BackgroundColor3 = Color3.fromRGB(22, 24, 30)
@@ -461,19 +465,34 @@ function UIController.Init()
 	cCorner.CornerRadius = UDim.new(0, 8)
 	cCorner.Parent = closeBtn
 
+	local function toggleStore()
+		storeModal.Visible = not storeModal.Visible
+	end
+
 	closeBtn.MouseButton1Click:Connect(function()
 		storeModal.Visible = false
 	end)
 
-	storeBtn.MouseButton1Click:Connect(function()
-		storeModal.Visible = not storeModal.Visible
+	storeBtn.MouseButton1Click:Connect(toggleStore)
+
+	storeModal:GetPropertyChangedSignal("Visible"):Connect(function()
 		if storeModal.Visible then
 			populateStoreItems()
 		end
 	end)
 
+	-- Press B to open/close Store
+	local UserInputService = game:GetService("UserInputService")
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+		if input.KeyCode == Enum.KeyCode.B then
+			toggleStore()
+		end
+	end)
+
 	-- Tabs Frame
 	local tabsFrame = Instance.new("Frame")
+	tabsFrame.Name = "TabsFrame"
 	tabsFrame.Size = UDim2.new(1, -40, 0, 36)
 	tabsFrame.Position = UDim2.new(0, 20, 0, 55)
 	tabsFrame.BackgroundTransparency = 1
@@ -514,6 +533,7 @@ function UIController.Init()
 
 	-- Scrolling Item List
 	itemScrollList = Instance.new("ScrollingFrame")
+	itemScrollList.Name = "ItemList"
 	itemScrollList.Size = UDim2.new(1, -40, 1, -115)
 	itemScrollList.Position = UDim2.new(0, 20, 0, 100)
 	itemScrollList.BackgroundTransparency = 1

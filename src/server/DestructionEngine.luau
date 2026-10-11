@@ -36,9 +36,14 @@ type StructureRecord = {
 	IsRespawning: boolean,
 }
 
-local registeredParts: { [BasePart]: PartRecord } = {}
-local registeredStructures: { [string]: StructureRecord } = {}
-local playerCooldowns: { [Player]: number } = {}
+local registeredParts: { [BasePart]: PartRecord } = (shared :: any).DestructionRegisteredParts or {}
+(shared :: any).DestructionRegisteredParts = registeredParts
+
+local registeredStructures: { [string]: StructureRecord } = (shared :: any).DestructionRegisteredStructures or {}
+(shared :: any).DestructionRegisteredStructures = registeredStructures
+
+local playerCooldowns: { [Player]: number } = (shared :: any).DestructionPlayerCooldowns or {}
+(shared :: any).DestructionPlayerCooldowns = playerCooldowns
 
 -- Spatial query parameters to optimize part searching
 local overlapParams = OverlapParams.new()

@@ -1,0 +1,17 @@
+# Roblox & Rojo
+*.rbxl
+*.rbxlx
+*.rbxmx
+*.lock
+.rojo/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDE & Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

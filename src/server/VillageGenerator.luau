@@ -34,6 +34,29 @@ local function createPart(
 	return part
 end
 
+local function createGround(
+	parent: Instance,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	material: Enum.Material,
+	name: string
+): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = cf
+	part.Color = color
+	part.Material = material
+	part.Anchored = true
+	part.CanCollide = true
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Parent = parent
+
+	return part
+end
+
 -- 1. Helper to build a Tudor-style Cottage
 local function buildTudorCottage(origin: CFrame, cottageId: string, name: string)
 	local model = Instance.new("Model")
@@ -48,29 +71,23 @@ local function buildTudorCottage(origin: CFrame, cottageId: string, name: string
 	local stoneColor = Color3.fromRGB(120, 120, 120) -- Foundation Stone
 
 	-- Stone Foundation
-	createPart(
+	createGround(
 		model,
 		Vector3.new(w + 1, 2, l + 1),
 		origin * CFrame.new(0, 1, 0),
 		stoneColor,
 		Enum.Material.Cobblestone,
-		"Foundation",
-		120,
-		35,
-		cottageId
+		"Foundation"
 	)
 
 	-- Floor
-	createPart(
+	createGround(
 		model,
 		Vector3.new(w, 0.5, l),
 		origin * CFrame.new(0, 2.25, 0),
 		beamColor,
 		Enum.Material.WoodPlanks,
-		"WoodFloor",
-		50,
-		15,
-		cottageId
+		"WoodFloor"
 	)
 
 	-- 4 Plaster Walls
@@ -226,16 +243,13 @@ local function buildShop(origin: CFrame, shopId: string, shopType: string)
 	local wood = Color3.fromRGB(80, 50, 30)
 
 	-- Base Foundation
-	createPart(
+	createGround(
 		model,
 		Vector3.new(w + 1, 2, l + 1),
 		origin * CFrame.new(0, 1, 0),
 		stone,
 		Enum.Material.Cobblestone,
-		"StoneBase",
-		150,
-		40,
-		shopId
+		"StoneBase"
 	)
 
 	-- Main Walls
@@ -587,16 +601,13 @@ local function buildTownSquare(squareOrigin: CFrame)
 	DestructionEngine.RegisterStructure(squareId, "Town Square", 30)
 
 	-- Cobblestone Plaza Floor
-	createPart(
+	createGround(
 		squareModel,
 		Vector3.new(60, 1, 60),
 		squareOrigin * CFrame.new(0, 0.5, 0),
 		Color3.fromRGB(130, 130, 135),
 		Enum.Material.Cobblestone,
-		"TownSquareFloor",
-		350,
-		100,
-		squareId
+		"TownSquareFloor"
 	)
 
 	-- Village Stone Well in Center
@@ -761,6 +772,16 @@ function VillageGenerator.Generate()
 	villageFolder.Parent = Workspace
 
 	print("[VillageGenerator] Generating Old English Village...")
+
+	-- Ground slab covering the entire village (Town Square, shops, cottages, farm, woods, vehicles)
+	createGround(
+		villageFolder,
+		Vector3.new(280, 4, 220),
+		CFrame.new(-50, -2, -20),
+		Color3.fromRGB(85, 140, 60),
+		Enum.Material.Grass,
+		"VillageGround"
+	)
 
 	-- 1. Central Town Square
 	local townCenter = CFrame.new(0, 0, 0)

@@ -23,6 +23,7 @@ The game concept is not decided yet (see README.md).
 - Disconnect event connections you no longer need, for example when a character or player is removed.
 - Keep modules small and single-purpose. Logic used by both client and server goes in `src/shared/`.
 - Follow `stylua.toml` and `selene.toml`. Don't change them unless a task says to.
+- Surfaces players can walk on (floors, foundations, plazas) are never destructible. Create them without registering them with DestructionEngine.
 
 ## Editing rules
 

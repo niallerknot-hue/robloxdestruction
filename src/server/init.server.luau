@@ -51,6 +51,23 @@ ShopServer.Init()
 -- 3. Procedurally generate the Old English Village
 VillageGenerator.Generate()
 
+local function hasWeaponInBackpack(player: Player): boolean
+	local currentBackpack = player:FindFirstChild("Backpack")
+	if not currentBackpack or currentBackpack.Parent ~= player then
+		return false
+	end
+	for _, child in currentBackpack:GetChildren() do
+		if
+			child:IsA("Tool")
+			and child:GetAttribute("IsDestructionWeapon") == true
+			and child.Parent == currentBackpack
+		then
+			return true
+		end
+	end
+	return false
+end
+
 -- 4. Equip players with starting weapons when they spawn
 local function equipPlayer(player: Player)
 	local char = player.Character
@@ -68,6 +85,16 @@ local function equipPlayer(player: Player)
 	local equippedWeapon = if playerData then playerData.EquippedWeapon else "sledgehammer"
 	ShopServer.GivePlayerWeaponTool(player, equippedWeapon)
 
+	if not hasWeaponInBackpack(player) then
+		task.wait()
+		if player:IsDescendantOf(Players) and char:IsDescendantOf(workspace) then
+			ShopServer.GivePlayerWeaponTool(player, equippedWeapon)
+			if not hasWeaponInBackpack(player) then
+				warn(string.format("[Server] Weapon missing for %s (%d) after retry", player.Name, player.UserId))
+			end
+		end
+	end
+
 	if playerData and playerData.EquippedAura ~= "none" then
 		ShopServer.ApplyAura(player, playerData.EquippedAura)
 	end
@@ -75,6 +102,16 @@ end
 
 local function onCharacterSpawned(player: Player, character: Model)
 	task.spawn(function()
+		if not character:IsDescendantOf(workspace) then
+			local waitStart = os.clock()
+			while not character:IsDescendantOf(workspace) do
+				if not player:IsDescendantOf(Players) or (os.clock() - waitStart) >= 5 then
+					return
+				end
+				task.wait()
+			end
+		end
+
 		local startTime = os.clock()
 		while not EconomyManager.IsLoaded(player) do
 			if not player:IsDescendantOf(Players) or not character:IsDescendantOf(workspace) then

@@ -6,23 +6,25 @@ local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 
 -- 1. Create and setup Remote Instances in ReplicatedStorage
 local function ensureRemoteEvent(name: string): RemoteEvent
-	local event = ReplicatedStorage:FindFirstChild(name) :: RemoteEvent?
-	if not event then
-		event = Instance.new("RemoteEvent")
-		event.Name = name
-		event.Parent = ReplicatedStorage
+	local existing = ReplicatedStorage:FindFirstChild(name)
+	if existing and existing:IsA("RemoteEvent") then
+		return existing
 	end
-	return event
+	local newEvent = Instance.new("RemoteEvent")
+	newEvent.Name = name
+	newEvent.Parent = ReplicatedStorage
+	return newEvent
 end
 
 local function ensureRemoteFunction(name: string): RemoteFunction
-	local func = ReplicatedStorage:FindFirstChild(name) :: RemoteFunction?
-	if not func then
-		func = Instance.new("RemoteFunction")
-		func.Name = name
-		func.Parent = ReplicatedStorage
+	local existing = ReplicatedStorage:FindFirstChild(name)
+	if existing and existing:IsA("RemoteFunction") then
+		return existing
 	end
-	return func
+	local newFunc = Instance.new("RemoteFunction")
+	newFunc.Name = name
+	newFunc.Parent = ReplicatedStorage
+	return newFunc
 end
 
 ensureRemoteEvent(Constants.Remotes.RequestAttack)
@@ -50,8 +52,18 @@ ShopServer.Init()
 VillageGenerator.Generate()
 
 -- 4. Equip players with starting weapons when they spawn
-local function onCharacterSpawned(player: Player, character: Model)
-	task.wait(0.2)
+local function equipPlayer(player: Player)
+	local char = player.Character
+	if not char or not char:IsDescendantOf(workspace) then
+		return
+	end
+
+	local backpack = player:WaitForChild("Backpack", 5)
+	if not backpack then
+		warn(string.format("[Server] Backpack missing for player %s (%d) after 5s timeout", player.Name, player.UserId))
+		return
+	end
+
 	local playerData = EconomyManager.GetPlayerData(player)
 	local equippedWeapon = if playerData then playerData.EquippedWeapon else "sledgehammer"
 	ShopServer.GivePlayerWeaponTool(player, equippedWeapon)
@@ -60,6 +72,44 @@ local function onCharacterSpawned(player: Player, character: Model)
 		ShopServer.ApplyAura(player, playerData.EquippedAura)
 	end
 end
+
+local function onCharacterSpawned(player: Player, character: Model)
+	task.spawn(function()
+		local startTime = os.clock()
+		while not EconomyManager.IsLoaded(player) do
+			if not player:IsDescendantOf(Players) or not character:IsDescendantOf(workspace) then
+				return
+			end
+			if (os.clock() - startTime) >= 15 then
+				warn(
+					string.format(
+						"[Server] Timeout waiting for data to load for %s (%d). Giving default sledgehammer.",
+						player.Name,
+						player.UserId
+					)
+				)
+				if player:IsDescendantOf(Players) and character:IsDescendantOf(workspace) then
+					ShopServer.GivePlayerWeaponTool(player, "sledgehammer")
+				end
+				return
+			end
+			task.wait(0.1)
+		end
+
+		if not player:IsDescendantOf(Players) or not character:IsDescendantOf(workspace) then
+			return
+		end
+
+		equipPlayer(player)
+	end)
+end
+
+-- C2: When a profile finishes loading, if the player's character is already in the world, give the saved weapon and aura
+EconomyManager.ProfileLoaded:Connect(function(player: Player)
+	if player.Character and player.Character:IsDescendantOf(workspace) then
+		equipPlayer(player)
+	end
+end)
 
 Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function(character)

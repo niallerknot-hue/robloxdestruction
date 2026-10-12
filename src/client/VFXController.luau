@@ -1,5 +1,4 @@
 --!strict
-local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -17,13 +16,13 @@ local function createFloatingText(position: Vector3, text: string, color: Color3
 	part.Parent = workspace
 
 	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 140, 0, 45)
+	billboard.Size = UDim2.fromOffset(140, 45)
 	billboard.StudsOffset = Vector3.new(0, 0, 0)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = part
 
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
+	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.Text = text
 	label.TextColor3 = color
@@ -53,7 +52,7 @@ local function createFloatingText(position: Vector3, text: string, color: Color3
 	end)
 end
 
-local function spawnDestructionDust(position: Vector3, color: Color3, material: Enum.Material)
+local function spawnDestructionDust(position: Vector3, color: Color3, _material: Enum.Material)
 	local emitterPart = Instance.new("Part")
 	emitterPart.Size = Vector3.new(0.5, 0.5, 0.5)
 	emitterPart.Position = position
@@ -84,7 +83,7 @@ local function spawnDestructionDust(position: Vector3, color: Color3, material: 
 	local sound = Instance.new("Sound")
 	sound.SoundId = "rbxasset://sounds/action_impact_wood.mp3"
 	sound.Volume = 0.6
-	sound.Pitch = math.random(85, 115) / 100
+	sound.PlaybackSpeed = math.random(85, 115) / 100
 	sound.Parent = emitterPart
 	sound:Play()
 

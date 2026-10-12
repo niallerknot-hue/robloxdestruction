@@ -61,6 +61,7 @@ export type PlayerData = {
 		TotalDestroyed: number,
 		TotalEarnings: number,
 	},
+	ProcessedReceipts: { [string]: boolean }?,
 }
 
 return {}

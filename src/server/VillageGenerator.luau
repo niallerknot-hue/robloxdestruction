@@ -1,8 +1,6 @@
 --!strict
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"))
 local DestructionEngine = require(script.Parent.DestructionEngine)
 
 local VillageGenerator = {}
@@ -179,7 +177,7 @@ local function buildTudorCottage(origin: CFrame, cottageId: string, name: string
 
 	-- Thatched Roof (Pitched Gable Roof)
 	local roofSlopeY = 2 + h + 3.5
-	local roof1 = createPart(
+	createPart(
 		model,
 		Vector3.new(w / 2 + 2, 1.5, l + 3),
 		origin * CFrame.new(-w / 4, roofSlopeY, 0) * CFrame.Angles(0, 0, math.rad(35)),
@@ -190,7 +188,7 @@ local function buildTudorCottage(origin: CFrame, cottageId: string, name: string
 		30,
 		cottageId
 	)
-	local roof2 = createPart(
+	createPart(
 		model,
 		Vector3.new(w / 2 + 2, 1.5, l + 3),
 		origin * CFrame.new(w / 4, roofSlopeY, 0) * CFrame.Angles(0, 0, math.rad(-35)),
@@ -450,7 +448,7 @@ local function buildFarm(farmCenter: CFrame)
 	)
 
 	-- Hay Bales around Barn
-	for idx = 1, 5 do
+	for _idx = 1, 5 do
 		local xOff = math.random(-bw / 2 - 8, -bw / 2 - 2)
 		local zOff = math.random(-bl / 2, bl / 2)
 		createPart(

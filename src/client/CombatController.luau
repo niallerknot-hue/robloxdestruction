@@ -1,7 +1,6 @@
 --!strict
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"))
@@ -15,6 +14,7 @@ local attackRemote: RemoteEvent
 local activeTool: Tool? = nil
 local isAttacking = false
 local lastAttackTime = 0
+local connectedTools: { [Tool]: boolean } = (setmetatable({}, { __mode = "k" }) :: any) :: { [Tool]: boolean }
 
 local function screenShake(intensity: number, duration: number)
 	task.spawn(function()
@@ -33,9 +33,11 @@ local function screenShake(intensity: number, duration: number)
 end
 
 local function onToolActivated()
-	if not activeTool or isAttacking then return end
+	if not activeTool or isAttacking then
+		return
+	end
 
-	local cooldown = activeTool:GetAttribute("Cooldown") or 0.65
+	local cooldown: number = (activeTool:GetAttribute("Cooldown") :: number?) or 0.65
 	local now = os.clock()
 	if (now - lastAttackTime) < cooldown then
 		return
@@ -57,7 +59,7 @@ local function onToolActivated()
 
 	-- Raycast from mouse to find hit position
 	local hitPosition = mouse.Hit.Position
-	local reach = (activeTool:GetAttribute("Radius") or 5) + 8
+	local reach: number = ((activeTool:GetAttribute("Radius") :: number?) or 5) + 8
 	local dist = (hitPosition - rootPart.Position).Magnitude
 
 	local impactCF: CFrame
@@ -101,7 +103,10 @@ function CombatController.Init()
 	local function setupTool(tool: Tool)
 		if tool:GetAttribute("IsDestructionWeapon") then
 			activeTool = tool
-			tool.Activated:Connect(onToolActivated)
+			if not connectedTools[tool] then
+				connectedTools[tool] = true
+				tool.Activated:Connect(onToolActivated)
+			end
 		end
 	end
 

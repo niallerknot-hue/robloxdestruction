@@ -28,6 +28,23 @@ New-Item -ItemType Directory -Force -Path build | Out-Null
 Run-Gate "rojo build" "rojo" { rojo build default.project.json -o build/game.rbxl }
 Run-Gate "stylua" "stylua" { stylua --check src }
 Run-Gate "selene" "selene" { selene src }
+Run-Gate "type check" "luau-lsp" {
+    rojo sourcemap default.project.json -o build/sourcemap.json
+    if ($LASTEXITCODE -ne 0) {
+        return
+    }
+    $defsPath = "build/globalTypes.d.luau"
+    if (-not (Test-Path $defsPath)) {
+        Write-Host "   Downloading Luau-LSP 1.70.1 Roblox definitions..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/1.70.1/scripts/globalTypes.d.luau" -OutFile $defsPath
+    }
+    if (-not (Test-Path $defsPath)) {
+        Write-Host "   Failed to obtain definitions file: $defsPath" -ForegroundColor Red
+        $global:LASTEXITCODE = 1
+        return
+    }
+    luau-lsp analyze --sourcemap build/sourcemap.json "--definitions=$defsPath" src
+}
 
 Write-Host "== strict header" -ForegroundColor Cyan
 $missing = @(Get-ChildItem -Path src -Recurse -Filter *.luau |

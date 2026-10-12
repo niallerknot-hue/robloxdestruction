@@ -3,6 +3,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
@@ -13,7 +14,6 @@ local UIController = {}
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
-local currentDollars = 0
 local inventoryData: Types.PlayerData? = nil
 local activeTab = "Weapons"
 
@@ -27,14 +27,16 @@ local function formatNumber(n: number): string
 	local k
 	while true do
 		formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1,%2")
-		if k == 0 then break end
+		if k == 0 then
+			break
+		end
 	end
 	return formatted
 end
 
 local function showNotification(msg: string, isError: boolean?)
 	local notif = Instance.new("TextLabel")
-	notif.Size = UDim2.new(0, 320, 0, 44)
+	notif.Size = UDim2.fromOffset(320, 44)
 	notif.Position = UDim2.new(0.5, -160, 0.15, 0)
 	notif.BackgroundColor3 = if isError then Color3.fromRGB(180, 40, 40) else Color3.fromRGB(40, 150, 60)
 	notif.TextColor3 = Color3.new(1, 1, 1)
@@ -48,7 +50,8 @@ local function showNotification(msg: string, isError: boolean?)
 	corner.Parent = notif
 
 	task.delay(2.5, function()
-		local fade = TweenService:Create(notif, TweenInfo.new(0.5), { BackgroundTransparency = 1, TextTransparency = 1 })
+		local fade =
+			TweenService:Create(notif, TweenInfo.new(0.5), { BackgroundTransparency = 1, TextTransparency = 1 })
 		fade:Play()
 		fade.Completed:Connect(function()
 			notif:Destroy()
@@ -83,7 +86,7 @@ local function populateStoreItems()
 
 			local title = Instance.new("TextLabel")
 			title.Size = UDim2.new(0.55, 0, 0, 24)
-			title.Position = UDim2.new(0, 12, 0, 8)
+			title.Position = UDim2.fromOffset(12, 8)
 			title.BackgroundTransparency = 1
 			title.Text = weapon.Name
 			title.TextColor3 = Color3.new(1, 1, 1)
@@ -94,7 +97,7 @@ local function populateStoreItems()
 
 			local desc = Instance.new("TextLabel")
 			desc.Size = UDim2.new(0.55, 0, 0, 36)
-			desc.Position = UDim2.new(0, 12, 0, 32)
+			desc.Position = UDim2.fromOffset(12, 32)
 			desc.BackgroundTransparency = 1
 			desc.Text = "DMG: " .. weapon.Damage .. " | Blast: " .. weapon.Radius .. " studs\n" .. weapon.Description
 			desc.TextColor3 = Color3.fromRGB(180, 185, 200)
@@ -106,7 +109,7 @@ local function populateStoreItems()
 
 			-- Dollar Action Button
 			local dollarBtn = Instance.new("TextButton")
-			dollarBtn.Size = UDim2.new(0, 105, 0, 36)
+			dollarBtn.Size = UDim2.fromOffset(105, 36)
 			dollarBtn.Position = UDim2.new(1, -230, 0.5, -18)
 			dollarBtn.Font = Enum.Font.GothamBold
 			dollarBtn.TextSize = 13
@@ -145,7 +148,7 @@ local function populateStoreItems()
 			-- Robux Action Button
 			if weapon.PriceRobux and weapon.PriceRobux > 0 and not isOwned then
 				local robuxBtn = Instance.new("TextButton")
-				robuxBtn.Size = UDim2.new(0, 100, 0, 36)
+				robuxBtn.Size = UDim2.fromOffset(100, 36)
 				robuxBtn.Position = UDim2.new(1, -115, 0.5, -18)
 				robuxBtn.BackgroundColor3 = Color3.fromRGB(20, 140, 75)
 				robuxBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -168,7 +171,6 @@ local function populateStoreItems()
 				end)
 			end
 		end
-
 	elseif activeTab == "Skins" then
 		for _, skin in ShopData.Skins do
 			local isOwned = inventoryData and inventoryData.OwnedSkins[skin.Id] or false
@@ -186,7 +188,7 @@ local function populateStoreItems()
 
 			local title = Instance.new("TextLabel")
 			title.Size = UDim2.new(0.6, 0, 0, 24)
-			title.Position = UDim2.new(0, 12, 0, 10)
+			title.Position = UDim2.fromOffset(12, 10)
 			title.BackgroundTransparency = 1
 			title.Text = skin.Name
 			title.TextColor3 = skin.Color
@@ -197,7 +199,7 @@ local function populateStoreItems()
 
 			local desc = Instance.new("TextLabel")
 			desc.Size = UDim2.new(0.6, 0, 0, 24)
-			desc.Position = UDim2.new(0, 12, 0, 34)
+			desc.Position = UDim2.fromOffset(12, 34)
 			desc.BackgroundTransparency = 1
 			desc.Text = skin.Description
 			desc.TextColor3 = Color3.fromRGB(180, 185, 200)
@@ -207,7 +209,7 @@ local function populateStoreItems()
 			desc.Parent = card
 
 			local actionBtn = Instance.new("TextButton")
-			actionBtn.Size = UDim2.new(0, 110, 0, 36)
+			actionBtn.Size = UDim2.fromOffset(110, 36)
 			actionBtn.Position = UDim2.new(1, -125, 0.5, -18)
 			actionBtn.Font = Enum.Font.GothamBold
 			actionBtn.TextSize = 13
@@ -243,7 +245,6 @@ local function populateStoreItems()
 				end)
 			end
 		end
-
 	elseif activeTab == "Auras" then
 		for _, aura in ShopData.Auras do
 			local isOwned = inventoryData and inventoryData.OwnedAuras[aura.Id] or false
@@ -261,7 +262,7 @@ local function populateStoreItems()
 
 			local title = Instance.new("TextLabel")
 			title.Size = UDim2.new(0.6, 0, 0, 24)
-			title.Position = UDim2.new(0, 12, 0, 10)
+			title.Position = UDim2.fromOffset(12, 10)
 			title.BackgroundTransparency = 1
 			title.Text = aura.Name
 			title.TextColor3 = aura.Color
@@ -272,7 +273,7 @@ local function populateStoreItems()
 
 			local desc = Instance.new("TextLabel")
 			desc.Size = UDim2.new(0.6, 0, 0, 24)
-			desc.Position = UDim2.new(0, 12, 0, 34)
+			desc.Position = UDim2.fromOffset(12, 34)
 			desc.BackgroundTransparency = 1
 			desc.Text = aura.Description
 			desc.TextColor3 = Color3.fromRGB(180, 185, 200)
@@ -282,7 +283,7 @@ local function populateStoreItems()
 			desc.Parent = card
 
 			local actionBtn = Instance.new("TextButton")
-			actionBtn.Size = UDim2.new(0, 110, 0, 36)
+			actionBtn.Size = UDim2.fromOffset(110, 36)
 			actionBtn.Position = UDim2.new(1, -125, 0.5, -18)
 			actionBtn.Font = Enum.Font.GothamBold
 			actionBtn.TextSize = 13
@@ -318,7 +319,6 @@ local function populateStoreItems()
 				end)
 			end
 		end
-
 	elseif activeTab == "CashPacks" then
 		for _, pack in ShopData.CurrencyPacks do
 			local card = Instance.new("Frame")
@@ -332,8 +332,8 @@ local function populateStoreItems()
 			cardCorner.Parent = card
 
 			local title = Instance.new("TextLabel")
-			title.Size = UDim2.new(0.6, 0, 1, 0)
-			title.Position = UDim2.new(0, 16, 0, 0)
+			title.Size = UDim2.fromScale(0.6, 1)
+			title.Position = UDim2.fromOffset(16, 0)
 			title.BackgroundTransparency = 1
 			title.Text = pack.Name
 			title.TextColor3 = Color3.fromRGB(80, 230, 80)
@@ -343,7 +343,7 @@ local function populateStoreItems()
 			title.Parent = card
 
 			local robuxBtn = Instance.new("TextButton")
-			robuxBtn.Size = UDim2.new(0, 110, 0, 36)
+			robuxBtn.Size = UDim2.fromOffset(110, 36)
 			robuxBtn.Position = UDim2.new(1, -125, 0.5, -18)
 			robuxBtn.BackgroundColor3 = Color3.fromRGB(20, 140, 75)
 			robuxBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -374,8 +374,8 @@ function UIController.Init()
 	-- Top Dollars Card
 	local dollarsCard = Instance.new("Frame")
 	dollarsCard.Name = "DollarsCard"
-	dollarsCard.Size = UDim2.new(0, 210, 0, 52)
-	dollarsCard.Position = UDim2.new(0, 24, 0, 24)
+	dollarsCard.Size = UDim2.fromOffset(210, 52)
+	dollarsCard.Position = UDim2.fromOffset(24, 24)
 	dollarsCard.BackgroundColor3 = Color3.fromRGB(25, 27, 34)
 	dollarsCard.BorderSizePixel = 0
 	dollarsCard.Parent = hudGui
@@ -392,7 +392,7 @@ function UIController.Init()
 	dollarsLabel = Instance.new("TextLabel")
 	dollarsLabel.Name = "DollarsLabel"
 	dollarsLabel.Size = UDim2.new(1, -20, 1, 0)
-	dollarsLabel.Position = UDim2.new(0, 10, 0, 0)
+	dollarsLabel.Position = UDim2.fromOffset(10, 0)
 	dollarsLabel.BackgroundTransparency = 1
 	dollarsLabel.Text = "$ 0"
 	dollarsLabel.TextColor3 = Color3.fromRGB(80, 240, 80)
@@ -404,8 +404,8 @@ function UIController.Init()
 	-- Open Store Button
 	local storeBtn = Instance.new("TextButton")
 	storeBtn.Name = "StoreButton"
-	storeBtn.Size = UDim2.new(0, 130, 0, 48)
-	storeBtn.Position = UDim2.new(0, 24, 0, 88)
+	storeBtn.Size = UDim2.fromOffset(130, 48)
+	storeBtn.Position = UDim2.fromOffset(24, 88)
 	storeBtn.BackgroundColor3 = Color3.fromRGB(240, 150, 20)
 	storeBtn.TextColor3 = Color3.new(1, 1, 1)
 	storeBtn.Font = Enum.Font.GothamBlack
@@ -421,7 +421,7 @@ function UIController.Init()
 	-- Store Modal Frame
 	storeModal = Instance.new("Frame")
 	storeModal.Name = "StoreModal"
-	storeModal.Size = UDim2.new(0, 560, 0, 460)
+	storeModal.Size = UDim2.fromOffset(560, 460)
 	storeModal.Position = UDim2.new(0.5, -280, 0.5, -230)
 	storeModal.BackgroundColor3 = Color3.fromRGB(22, 24, 30)
 	storeModal.BorderSizePixel = 0
@@ -440,7 +440,7 @@ function UIController.Init()
 	-- Store Header
 	local headerTitle = Instance.new("TextLabel")
 	headerTitle.Size = UDim2.new(0.5, 0, 0, 45)
-	headerTitle.Position = UDim2.new(0, 20, 0, 5)
+	headerTitle.Position = UDim2.fromOffset(20, 5)
 	headerTitle.BackgroundTransparency = 1
 	headerTitle.Text = "VILLAGE ARMORY & SHOP"
 	headerTitle.TextColor3 = Color3.new(1, 1, 1)
@@ -451,7 +451,7 @@ function UIController.Init()
 
 	-- Close Button
 	local closeBtn = Instance.new("TextButton")
-	closeBtn.Size = UDim2.new(0, 36, 0, 36)
+	closeBtn.Size = UDim2.fromOffset(36, 36)
 	closeBtn.Position = UDim2.new(1, -48, 0, 10)
 	closeBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 	closeBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -482,9 +482,10 @@ function UIController.Init()
 	end)
 
 	-- Press B to open/close Store
-	local UserInputService = game:GetService("UserInputService")
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
+		if gameProcessed then
+			return
+		end
 		if input.KeyCode == Enum.KeyCode.B then
 			toggleStore()
 		end
@@ -494,7 +495,7 @@ function UIController.Init()
 	local tabsFrame = Instance.new("Frame")
 	tabsFrame.Name = "TabsFrame"
 	tabsFrame.Size = UDim2.new(1, -40, 0, 36)
-	tabsFrame.Position = UDim2.new(0, 20, 0, 55)
+	tabsFrame.Position = UDim2.fromOffset(20, 55)
 	tabsFrame.BackgroundTransparency = 1
 	tabsFrame.Parent = storeModal
 
@@ -535,7 +536,7 @@ function UIController.Init()
 	itemScrollList = Instance.new("ScrollingFrame")
 	itemScrollList.Name = "ItemList"
 	itemScrollList.Size = UDim2.new(1, -40, 1, -115)
-	itemScrollList.Position = UDim2.new(0, 20, 0, 100)
+	itemScrollList.Position = UDim2.fromOffset(20, 100)
 	itemScrollList.BackgroundTransparency = 1
 	itemScrollList.BorderSizePixel = 0
 	itemScrollList.ScrollBarThickness = 6
@@ -555,7 +556,6 @@ function UIController.Init()
 	local syncRemote = ReplicatedStorage:WaitForChild(Constants.Remotes.SyncInventory) :: RemoteEvent
 
 	currRemote.OnClientEvent:Connect(function(dollars: number)
-		currentDollars = dollars
 		dollarsLabel.Text = "$ " .. formatNumber(dollars)
 
 		-- Pulse green stroke

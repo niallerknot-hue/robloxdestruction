@@ -1,11 +1,10 @@
 --!strict
-local Debris = game:GetService("Debris")
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Constants"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local WeaponData = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponData"))
 local CollisionManager = require(script.Parent.CollisionManager)
 local EconomyManager = require(script.Parent.EconomyManager)
@@ -36,14 +35,9 @@ type StructureRecord = {
 	IsRespawning: boolean,
 }
 
-local registeredParts: { [BasePart]: PartRecord } = (shared :: any).DestructionRegisteredParts or {}
-(shared :: any).DestructionRegisteredParts = registeredParts
-
-local registeredStructures: { [string]: StructureRecord } = (shared :: any).DestructionRegisteredStructures or {}
-(shared :: any).DestructionRegisteredStructures = registeredStructures
-
-local playerCooldowns: { [Player]: number } = (shared :: any).DestructionPlayerCooldowns or {}
-(shared :: any).DestructionPlayerCooldowns = playerCooldowns
+local registeredParts: { [BasePart]: PartRecord } = {}
+local registeredStructures: { [string]: StructureRecord } = {}
+local playerCooldowns: { [Player]: number } = {}
 
 -- Spatial query parameters to optimize part searching
 local overlapParams = OverlapParams.new()
@@ -58,6 +52,11 @@ function DestructionEngine.Init()
 			DestructionEngine.ProcessAttack(player, impactCFrame)
 		end)
 	end
+
+	-- D3: Clear playerCooldowns when players leave
+	Players.PlayerRemoving:Connect(function(player: Player)
+		playerCooldowns[player] = nil
+	end)
 
 	print("[DestructionEngine] Destruction Engine initialized.")
 end
@@ -130,18 +129,12 @@ local function breakPart(part: BasePart, record: PartRecord, attacker: Player?, 
 		direction = (direction + Vector3.new(0, 0.45, 0)).Unit
 	end
 
-	local impulseMagnitude = math.random(
-		Constants.Settings.MinImpulseForce,
-		Constants.Settings.MaxImpulseForce
-	) * (part:GetMass() ^ 0.75)
-	
+	local impulseMagnitude = math.random(Constants.Settings.MinImpulseForce, Constants.Settings.MaxImpulseForce)
+		* (part:GetMass() ^ 0.75)
+
 	pcall(function()
 		part:ApplyImpulse(direction * impulseMagnitude)
-		part:ApplyAngularImpulse(Vector3.new(
-			math.random(-15, 15),
-			math.random(-15, 15),
-			math.random(-15, 15)
-		))
+		part:ApplyAngularImpulse(Vector3.new(math.random(-15, 15), math.random(-15, 15), math.random(-15, 15)))
 	end)
 
 	-- Fire visual effect to clients
@@ -213,35 +206,49 @@ function DestructionEngine.ScheduleStructureRespawn(struct: StructureRecord)
 end
 
 function DestructionEngine.ProcessAttack(player: Player, impactCFrame: CFrame)
+	-- D1: Validate CFrame type
+	if typeof(impactCFrame) ~= "CFrame" then
+		return
+	end
+
 	local char = player.Character
-	if not char then return end
+	if not char then
+		return
+	end
 
 	local rootPart = char:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not rootPart then return end
+	if not rootPart then
+		return
+	end
 
 	-- Get player's equipped weapon
 	local playerData = EconomyManager.GetPlayerData(player)
 	local weaponId = if playerData then playerData.EquippedWeapon else "sledgehammer"
 	local weapon = WeaponData[weaponId] or WeaponData["sledgehammer"]
 
-	-- Rate limiting check
+	-- D2: Rate limiting check
 	local now = os.clock()
 	local lastAttack = playerCooldowns[player] or 0
 	if (now - lastAttack) < (weapon.Cooldown * 0.85) then
 		return
 	end
-	playerCooldowns[player] = now
 
 	-- Sanity check distance between player and impact point to prevent exploitation
 	local distance = (rootPart.Position - impactCFrame.Position).Magnitude
 	local maxReach = weapon.Radius + 15
-	if distance > maxReach then
+	-- D1: Reject out-of-reach and NaN positions
+	if not (distance <= maxReach) then
 		return
 	end
 
+	-- D2: Stamp cooldown only after type and distance checks pass
+	playerCooldowns[player] = now
+
 	-- Find all destructible parts in weapon blast/swing radius
 	local destructibleList = CollectionService:GetTagged(Constants.Tags.Destructible)
-	if #destructibleList == 0 then return end
+	if #destructibleList == 0 then
+		return
+	end
 
 	overlapParams.FilterDescendantsInstances = destructibleList
 	local hitParts = workspace:GetPartBoundsInRadius(impactCFrame.Position, weapon.Radius, overlapParams)

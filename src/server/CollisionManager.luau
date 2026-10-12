@@ -7,13 +7,9 @@ local Constants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 local CollisionManager = {}
 
 local function safeRegisterCollisionGroup(name: string)
-	local success, err = pcall(function()
+	pcall(function()
 		PhysicsService:RegisterCollisionGroup(name)
 	end)
-	if not success then
-		-- In case group is already registered
-		-- warn("[CollisionManager] Note on registering group:", name, err)
-	end
 end
 
 function CollisionManager.Init()

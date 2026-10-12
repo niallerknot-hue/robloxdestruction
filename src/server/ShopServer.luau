@@ -31,14 +31,32 @@ function ShopServer.Init()
 	MarketplaceService.ProcessReceipt = function(receiptInfo)
 		local userId = receiptInfo.PlayerId
 		local productId = receiptInfo.ProductId
+		local purchaseId = receiptInfo.PurchaseId
 		local player = Players:GetPlayerByUserId(userId)
 
+		-- 1. Player not in the server: return NotProcessedYet
 		if not player then
-			-- Player left, try later
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 
-		local success = ShopServer.GrantRobuxPurchase(player, productId)
+		-- 2. EconomyManager.IsLoaded(player) is false: log a warn and return NotProcessedYet
+		if not EconomyManager.IsLoaded(player) then
+			warn(string.format("[ShopServer] Player %d data not loaded yet for purchase %s", userId, purchaseId))
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+
+		-- 3. The PurchaseId is already in the profile's ProcessedReceipts: return PurchaseGranted
+		if EconomyManager.HasProcessedReceipt(player, purchaseId) then
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+
+		-- R3: If the purchase is already in flight, return NotProcessedYet so Roblox retries later
+		if EconomyManager.IsPurchaseInFlight(purchaseId) then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+
+		-- 4-6. Apply grant to copy, save before grant, apply grant to live profile only on save success
+		local success = ShopServer.GrantRobuxPurchase(player, productId, purchaseId)
 		if success then
 			return Enum.ProductPurchaseDecision.PurchaseGranted
 		else
@@ -49,7 +67,11 @@ function ShopServer.Init()
 	print("[ShopServer] Shop and Monetization server initialized.")
 end
 
-function ShopServer.ProcessPurchase(player: Player, category: string, itemId: string): { Success: boolean, Message: string }
+function ShopServer.ProcessPurchase(
+	player: Player,
+	category: string,
+	itemId: string
+): { Success: boolean, Message: string }
 	local playerData = EconomyManager.GetPlayerData(player)
 	if not playerData then
 		return { Success = false, Message = "Player data not loaded." }
@@ -64,14 +86,16 @@ function ShopServer.ProcessPurchase(player: Player, category: string, itemId: st
 			return { Success = false, Message = "Weapon already owned." }
 		end
 		if not EconomyManager.SpendDollars(player, weapon.PriceDollars) then
-			return { Success = false, Message = "Insufficient Dollars ($" .. tostring(weapon.PriceDollars) .. " needed)." }
+			return {
+				Success = false,
+				Message = "Insufficient Dollars ($" .. tostring(weapon.PriceDollars) .. " needed).",
+			}
 		end
 
 		EconomyManager.UnlockWeapon(player, itemId)
 		EconomyManager.EquipWeapon(player, itemId)
 		ShopServer.GivePlayerWeaponTool(player, itemId)
 		return { Success = true, Message = "Successfully purchased " .. weapon.Name .. "!" }
-
 	elseif category == "Skin" then
 		local skin = ShopData.Skins[itemId]
 		if not skin then
@@ -86,8 +110,9 @@ function ShopServer.ProcessPurchase(player: Player, category: string, itemId: st
 
 		EconomyManager.UnlockSkin(player, itemId)
 		EconomyManager.EquipSkin(player, itemId)
+		-- B6: Call ShopServer.GivePlayerWeaponTool with the equipped weapon
+		ShopServer.GivePlayerWeaponTool(player, playerData.EquippedWeapon)
 		return { Success = true, Message = "Successfully purchased " .. skin.Name .. " skin!" }
-
 	elseif category == "Aura" then
 		local aura = ShopData.Auras[itemId]
 		if not aura then
@@ -111,7 +136,9 @@ end
 
 function ShopServer.ProcessEquip(player: Player, category: string, itemId: string)
 	local playerData = EconomyManager.GetPlayerData(player)
-	if not playerData then return end
+	if not playerData then
+		return
+	end
 
 	if category == "Weapon" and playerData.OwnedWeapons[itemId] then
 		EconomyManager.EquipWeapon(player, itemId)
@@ -126,51 +153,77 @@ function ShopServer.ProcessEquip(player: Player, category: string, itemId: strin
 	end
 end
 
-function ShopServer.GrantRobuxPurchase(player: Player, productId: number): boolean
+function ShopServer.GrantRobuxPurchase(player: Player, productId: number, purchaseId: string): boolean
 	-- Check Currency Packs
 	for _, pack in ShopData.CurrencyPacks do
 		if pack.DevProductId == productId then
-			EconomyManager.AddDollars(player, pack.Dollars)
-			return true
+			return EconomyManager.SaveRobuxPurchase(player, purchaseId, function(copy)
+				copy.Dollars += pack.Dollars
+				copy.Stats.TotalEarnings += pack.Dollars
+				return true
+			end)
 		end
 	end
 
 	-- Check Weapons
 	for weaponId, weapon in WeaponData do
 		if weapon.DevProductId == productId then
-			EconomyManager.UnlockWeapon(player, weaponId)
-			EconomyManager.EquipWeapon(player, weaponId)
-			ShopServer.GivePlayerWeaponTool(player, weaponId)
-			return true
+			local saveOk = EconomyManager.SaveRobuxPurchase(player, purchaseId, function(copy)
+				copy.OwnedWeapons[weaponId] = true
+				copy.EquippedWeapon = weaponId
+				return true
+			end)
+			if saveOk then
+				ShopServer.GivePlayerWeaponTool(player, weaponId)
+			end
+			return saveOk
 		end
 	end
 
 	-- Check Skins
 	for skinId, skin in ShopData.Skins do
 		if skin.DevProductId == productId then
-			EconomyManager.UnlockSkin(player, skinId)
-			EconomyManager.EquipSkin(player, skinId)
-			return true
+			local saveOk = EconomyManager.SaveRobuxPurchase(player, purchaseId, function(copy)
+				copy.OwnedSkins[skinId] = true
+				copy.EquippedSkin = skinId
+				return true
+			end)
+			if saveOk then
+				-- B6: Call ShopServer.GivePlayerWeaponTool with the equipped weapon
+				local liveData = EconomyManager.GetPlayerData(player)
+				local equippedWeapon = if liveData then liveData.EquippedWeapon else "sledgehammer"
+				ShopServer.GivePlayerWeaponTool(player, equippedWeapon)
+			end
+			return saveOk
 		end
 	end
 
 	-- Check Auras
 	for auraId, aura in ShopData.Auras do
 		if aura.DevProductId == productId then
-			EconomyManager.UnlockAura(player, auraId)
-			EconomyManager.EquipAura(player, auraId)
-			ShopServer.ApplyAura(player, auraId)
-			return true
+			local saveOk = EconomyManager.SaveRobuxPurchase(player, purchaseId, function(copy)
+				copy.OwnedAuras[auraId] = true
+				copy.EquippedAura = auraId
+				return true
+			end)
+			if saveOk then
+				ShopServer.ApplyAura(player, auraId)
+			end
+			return saveOk
 		end
 	end
 
+	-- B3: For a ProductId that doesn't match any product, log a warn with the ProductId and return NotProcessedYet (false)
+	warn(string.format("[ShopServer] Unknown ProductId %d for UserId %d", productId, player.UserId))
 	return false
 end
 
 function ShopServer.GivePlayerWeaponTool(player: Player, weaponId: string)
 	local char = player.Character
 	local backpack = player:FindFirstChild("Backpack")
-	if not backpack then return end
+	if not backpack then
+		return
+	end
 
 	local weapon = WeaponData[weaponId] or WeaponData["sledgehammer"]
 	local playerData = EconomyManager.GetPlayerData(player)
@@ -236,10 +289,14 @@ end
 
 function ShopServer.ApplyAura(player: Player, auraId: string)
 	local char = player.Character
-	if not char then return end
+	if not char then
+		return
+	end
 
 	local rootPart = char:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not rootPart then return end
+	if not rootPart then
+		return
+	end
 
 	-- Clean up existing aura
 	local existingAura = rootPart:FindFirstChild("PlayerAuraAttachment")
@@ -247,10 +304,14 @@ function ShopServer.ApplyAura(player: Player, auraId: string)
 		existingAura:Destroy()
 	end
 
-	if auraId == "none" then return end
+	if auraId == "none" then
+		return
+	end
 
 	local auraInfo = ShopData.Auras[auraId]
-	if not auraInfo then return end
+	if not auraInfo then
+		return
+	end
 
 	local attachment = Instance.new("Attachment")
 	attachment.Name = "PlayerAuraAttachment"

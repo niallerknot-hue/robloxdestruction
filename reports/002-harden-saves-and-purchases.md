@@ -108,13 +108,21 @@ ALL GATES PASSED
 The report must include this for the user to run in Studio:
 
 1. Join, buy a weapon that costs Dollars, leave, rejoin. The weapon is still owned and equipped, and the Dollars are still there.
+   - **live**: Player destroyed trees and boulders (earning Dollars from $207 to $437; no fences were destroyed as none exist), bought `Spiked Sledge` ($350) via the `BuyItem` remote, had tool placed in backpack with $87 remaining, stopped session to trigger DataStore save, and rejoined. Verified on rejoin that $87 and `Spiked Sledge` remained equipped.
 2. Join with a saved non-hammer weapon equipped. It's equipped on spawn, not the hammer.
+   - **live**: Rejoined the game with `spiked_sledge` equipped in saved profile. Player spawned with `Spiked Sledge` in backpack, not the default sledgehammer.
 3. Buy a skin. The held weapon shows the skin without re-equipping.
+   - **code check**: Validated through code inspection of `ShopServer.ProcessPurchase` (Skin branch) and `ShopServer.ProcessEquip`: `ShopServer.GivePlayerWeaponTool` updates part color/material without un-equipping or replacing the tool instance. (Player did not have sufficient Dollars in live test to purchase the 25,000 Dollar golden skin).
 4. During join and leave, the Output shows no `[EconomyManager]` warnings.
+   - **live**: Verified in Studio output log during clean session join, DataStore load, session stop, and save. Zero `[EconomyManager]` warnings or errors.
 5. Once real DevProduct IDs are set: buy one Robux pack. Dollars are granted once, with no warning in the Output.
+   - **simulated**: Executed `ShopServer.GrantRobuxPurchase(player, 40001, purchaseId)` in Play mode since real DevProduct IDs are not yet registered in Creator Hub. Dollars were granted once, receipt was recorded in `ProcessedReceipts`, and output log showed no warnings.
 6. Die and respawn. A hammer is in the backpack each time, and the Output shows no warnings.
+   - **live**: Player killed and respawned multiple times. Equipped weapon (`Spiked Sledge` / `Sledge Hammer`) appeared in the backpack on each respawn with zero warnings.
 7. Destroy a building. The impact sound plays, and the Output shows no `Pitch` error.
+   - **live**: Destroyed objects in the village triggering `PlayDestructionFX`. Output showed no `Pitch` errors (verified `sound.PlaybackSpeed` works cleanly).
 8. Race test. Buy a Dollars pack with Robux, and while the purchase is still going through, buy a weapon with Dollars. After rejoining, the weapon is still owned, the Dollars add up correctly, and the Output shows no errors.
+   - **simulated**: Initiated `ShopServer.GrantRobuxPurchase` in parallel with a concurrent `ShopServer.ProcessPurchase` for `iron_demolisher`. Weapon was granted, receipt was saved, and final dollar balance accurately reflected both transactions ($2,087 to $5,687) without lost updates.
 
 ## Known limitations (not blocking)
 

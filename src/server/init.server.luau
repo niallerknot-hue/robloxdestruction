@@ -105,7 +105,17 @@ local function onCharacterSpawned(player: Player, character: Model)
 		if not character:IsDescendantOf(workspace) then
 			local waitStart = os.clock()
 			while not character:IsDescendantOf(workspace) do
-				if not player:IsDescendantOf(Players) or (os.clock() - waitStart) >= 5 then
+				if not player:IsDescendantOf(Players) then
+					return
+				end
+				if (os.clock() - waitStart) >= 5 then
+					warn(
+						string.format(
+							"[Server] Character never reached workspace for %s (%d)",
+							player.Name,
+							player.UserId
+						)
+					)
 					return
 				end
 				task.wait()

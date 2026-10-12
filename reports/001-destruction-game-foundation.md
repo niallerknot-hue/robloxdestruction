@@ -28,13 +28,13 @@
    Configured Roblox `PhysicsService` collision matrix so `Debris` collision group never collides with `Players` or other `Debris` (colliding only with `Default` ground). This completely prevents players from getting stuck, glitched, or fling-killed by rubble.
 
 2. **Destruction Physics Engine (`DestructionEngine.luau`)**:
-   Tracks hitpoints per structure part, breaks structural welds, unanchors damaged parts, applies realistic radial impulse forces away from impact centers, fades transparency over 6 seconds before debris cleanup, and regenerates broken buildings on a 35-second timer.
+   Tracks hitpoints per structure part, unanchors damaged parts, applies realistic radial impulse forces away from impact centers, fades transparency over 0.8 seconds starting at 2.2 seconds (3.0s total lifetime) before debris cleanup, and regenerates broken buildings on a 35-second timer.
 
 3. **Weaponry & Sledgehammer Combat (`WeaponData.luau`, `CombatController.luau`)**:
    8 weapon tiers scaling from Sledgehammer to Plasma Annihilator with procedural swing arcs, spatial hit-box detection, screen shake, and server validation.
 
 4. **Dollars Economy & Persistence (`EconomyManager.luau`)**:
-   Awards dollars on each hit and destruction milestone. Persists balances, stats, and owned/equipped inventory into `DataStoreService` with pcall error handling and retry mechanisms. Syncs to player leaderstats and client HUD.
+   Awards dollars on each hit and destruction milestone. Persists balances, stats, and owned/equipped inventory into `DataStoreService` with basic pcall error handling. Syncs to player leaderstats and client HUD.
 
 5. **Storefront & Monetization (`ShopServer.luau`, `UIController.luau`, `ShopData.luau`)**:
    Interactive, animated dark-gold styled Armory store interface with 4 tabs: Weapons, Skins (Pure Gold, Magma, Obsidian, Galaxy), Auras (Dollar Shower, Electric Storm, Inferno Blaze, Shadow Rift), and Robux Cash Packs via `MarketplaceService.ProcessReceipt`. Includes HUD shortcut button and `B` keybind toggle.
@@ -79,7 +79,8 @@ ALL GATES PASSED
 
 ## Studio steps needed
 
-- **none** (All maps, collision groups, items, and UI are fully generated in Luau code, with a pre-built place file available at `DestructionVillage.rbxl`).
+- Game Settings -> Security -> "Enable Studio Access to API Services" must be enabled in Roblox Studio for DataStore calls.
+- Real Developer Product IDs must be created in Creator Hub and updated in the code when live Robux monetization is enabled.
 
 ## Open questions
 

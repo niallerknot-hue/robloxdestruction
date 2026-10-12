@@ -1,6 +1,6 @@
 # 004: Village ground and respawn weapon
 
-**Status:** in-progress (round 2 for the weapon, see the end of this file)
+**Status:** review
 
 **Goal:** Give the whole village solid ground so players don't fall off the edge, and make sure the sledgehammer is always in the backpack after a spawn or respawn.
 

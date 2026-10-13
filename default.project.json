@@ -5,6 +5,9 @@
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "Templates": {
+        "$path": "src/templates"
       }
     },
     "ServerScriptService": {

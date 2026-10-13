@@ -34,6 +34,7 @@ ensureRemoteEvent(Constants.Remotes.EquipItem)
 ensureRemoteEvent(Constants.Remotes.SyncInventory)
 ensureRemoteEvent(Constants.Remotes.PlayDestructionFX)
 ensureRemoteEvent(Constants.Remotes.NotifyMessage)
+ensureRemoteEvent(Constants.Remotes.CheckGamePass)
 ensureRemoteFunction(Constants.Remotes.BuyItem)
 
 -- 2. Require and initialize Subsystems
@@ -41,6 +42,7 @@ local CollisionManager = require(script.CollisionManager)
 local EconomyManager = require(script.EconomyManager)
 local DestructionEngine = require(script.DestructionEngine)
 local ShopServer = require(script.ShopServer)
+local TerrainGenerator = require(script.TerrainGenerator)
 local VillageGenerator = require(script.VillageGenerator)
 
 CollisionManager.Init()
@@ -48,7 +50,19 @@ EconomyManager.Init()
 DestructionEngine.Init()
 ShopServer.Init()
 
--- 3. Procedurally generate the Old English Village
+-- 3. Procedurally generate map terrain and the Old English Village
+Players.CharacterAutoLoads = false
+local terrainStart = os.clock()
+TerrainGenerator.Generate()
+print(string.format("[TerrainGenerator] Terrain generated in %.2f seconds", os.clock() - terrainStart))
+Players.CharacterAutoLoads = true
+
+for _, player in Players:GetPlayers() do
+	if not player.Character then
+		player:LoadCharacter()
+	end
+end
+
 VillageGenerator.Generate()
 
 local function hasWeaponInBackpack(player: Player): boolean

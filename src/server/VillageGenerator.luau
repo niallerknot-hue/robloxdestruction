@@ -773,16 +773,6 @@ function VillageGenerator.Generate()
 
 	print("[VillageGenerator] Generating Old English Village...")
 
-	-- Ground slab covering the entire village (Town Square, shops, cottages, farm, woods, vehicles)
-	createGround(
-		villageFolder,
-		Vector3.new(280, 4, 220),
-		CFrame.new(-50, -2, -20),
-		Color3.fromRGB(85, 140, 60),
-		Enum.Material.Grass,
-		"VillageGround"
-	)
-
 	-- 1. Central Town Square
 	local townCenter = CFrame.new(0, 0, 0)
 	buildTownSquare(townCenter)

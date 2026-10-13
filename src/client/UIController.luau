@@ -108,9 +108,10 @@ local function populateStoreItems()
 			desc.Parent = card
 
 			-- Dollar Action Button
+			local hasRobuxOption = weapon.PriceRobux and weapon.PriceRobux > 0 and weapon.GamePassId and not isOwned
 			local dollarBtn = Instance.new("TextButton")
-			dollarBtn.Size = UDim2.fromOffset(105, 36)
-			dollarBtn.Position = UDim2.new(1, -230, 0.5, -18)
+			dollarBtn.Size = if hasRobuxOption then UDim2.fromOffset(105, 36) else UDim2.fromOffset(110, 36)
+			dollarBtn.Position = if hasRobuxOption then UDim2.new(1, -230, 0.5, -18) else UDim2.new(1, -125, 0.5, -18)
 			dollarBtn.Font = Enum.Font.GothamBold
 			dollarBtn.TextSize = 13
 			dollarBtn.BorderSizePixel = 0
@@ -146,7 +147,7 @@ local function populateStoreItems()
 			end
 
 			-- Robux Action Button
-			if weapon.PriceRobux and weapon.PriceRobux > 0 and not isOwned then
+			if hasRobuxOption and weapon.GamePassId then
 				local robuxBtn = Instance.new("TextButton")
 				robuxBtn.Size = UDim2.fromOffset(100, 36)
 				robuxBtn.Position = UDim2.new(1, -115, 0.5, -18)
@@ -154,7 +155,7 @@ local function populateStoreItems()
 				robuxBtn.TextColor3 = Color3.new(1, 1, 1)
 				robuxBtn.Font = Enum.Font.GothamBold
 				robuxBtn.TextSize = 13
-				robuxBtn.Text = "R$ " .. weapon.PriceRobux
+				robuxBtn.Text = "R$ " .. tostring(weapon.PriceRobux)
 				robuxBtn.BorderSizePixel = 0
 				robuxBtn.Parent = card
 
@@ -163,11 +164,7 @@ local function populateStoreItems()
 				rCorner.Parent = robuxBtn
 
 				robuxBtn.MouseButton1Click:Connect(function()
-					if weapon.DevProductId then
-						MarketplaceService:PromptProductPurchase(player, weapon.DevProductId)
-					else
-						showNotification("Robux purchase configured in place settings.", false)
-					end
+					MarketplaceService:PromptGamePassPurchase(player, weapon.GamePassId)
 				end)
 			end
 		end
@@ -208,9 +205,10 @@ local function populateStoreItems()
 			desc.TextXAlignment = Enum.TextXAlignment.Left
 			desc.Parent = card
 
+			local hasRobuxOption = skin.PriceRobux and skin.PriceRobux > 0 and skin.GamePassId and not isOwned
 			local actionBtn = Instance.new("TextButton")
-			actionBtn.Size = UDim2.fromOffset(110, 36)
-			actionBtn.Position = UDim2.new(1, -125, 0.5, -18)
+			actionBtn.Size = if hasRobuxOption then UDim2.fromOffset(105, 36) else UDim2.fromOffset(110, 36)
+			actionBtn.Position = if hasRobuxOption then UDim2.new(1, -230, 0.5, -18) else UDim2.new(1, -125, 0.5, -18)
 			actionBtn.Font = Enum.Font.GothamBold
 			actionBtn.TextSize = 13
 			actionBtn.BorderSizePixel = 0
@@ -242,6 +240,28 @@ local function populateStoreItems()
 						local res = buyRemote:InvokeServer("Skin", skin.Id)
 						showNotification(res.Message, not res.Success)
 					end
+				end)
+			end
+
+			-- Robux Action Button
+			if hasRobuxOption and skin.GamePassId then
+				local robuxBtn = Instance.new("TextButton")
+				robuxBtn.Size = UDim2.fromOffset(100, 36)
+				robuxBtn.Position = UDim2.new(1, -115, 0.5, -18)
+				robuxBtn.BackgroundColor3 = Color3.fromRGB(20, 140, 75)
+				robuxBtn.TextColor3 = Color3.new(1, 1, 1)
+				robuxBtn.Font = Enum.Font.GothamBold
+				robuxBtn.TextSize = 13
+				robuxBtn.Text = "R$ " .. tostring(skin.PriceRobux)
+				robuxBtn.BorderSizePixel = 0
+				robuxBtn.Parent = card
+
+				local rCorner = Instance.new("UICorner")
+				rCorner.CornerRadius = UDim.new(0, 8)
+				rCorner.Parent = robuxBtn
+
+				robuxBtn.MouseButton1Click:Connect(function()
+					MarketplaceService:PromptGamePassPurchase(player, skin.GamePassId)
 				end)
 			end
 		end
@@ -282,9 +302,10 @@ local function populateStoreItems()
 			desc.TextXAlignment = Enum.TextXAlignment.Left
 			desc.Parent = card
 
+			local hasRobuxOption = aura.PriceRobux and aura.PriceRobux > 0 and aura.GamePassId and not isOwned
 			local actionBtn = Instance.new("TextButton")
-			actionBtn.Size = UDim2.fromOffset(110, 36)
-			actionBtn.Position = UDim2.new(1, -125, 0.5, -18)
+			actionBtn.Size = if hasRobuxOption then UDim2.fromOffset(105, 36) else UDim2.fromOffset(110, 36)
+			actionBtn.Position = if hasRobuxOption then UDim2.new(1, -230, 0.5, -18) else UDim2.new(1, -125, 0.5, -18)
 			actionBtn.Font = Enum.Font.GothamBold
 			actionBtn.TextSize = 13
 			actionBtn.BorderSizePixel = 0
@@ -316,6 +337,28 @@ local function populateStoreItems()
 						local res = buyRemote:InvokeServer("Aura", aura.Id)
 						showNotification(res.Message, not res.Success)
 					end
+				end)
+			end
+
+			-- Robux Action Button
+			if hasRobuxOption and aura.GamePassId then
+				local robuxBtn = Instance.new("TextButton")
+				robuxBtn.Size = UDim2.fromOffset(100, 36)
+				robuxBtn.Position = UDim2.new(1, -115, 0.5, -18)
+				robuxBtn.BackgroundColor3 = Color3.fromRGB(20, 140, 75)
+				robuxBtn.TextColor3 = Color3.new(1, 1, 1)
+				robuxBtn.Font = Enum.Font.GothamBold
+				robuxBtn.TextSize = 13
+				robuxBtn.Text = "R$ " .. tostring(aura.PriceRobux)
+				robuxBtn.BorderSizePixel = 0
+				robuxBtn.Parent = card
+
+				local rCorner = Instance.new("UICorner")
+				rCorner.CornerRadius = UDim.new(0, 8)
+				rCorner.Parent = robuxBtn
+
+				robuxBtn.MouseButton1Click:Connect(function()
+					MarketplaceService:PromptGamePassPurchase(player, aura.GamePassId)
 				end)
 			end
 		end
@@ -554,6 +597,7 @@ function UIController.Init()
 	-- Network Event Listeners
 	local currRemote = ReplicatedStorage:WaitForChild(Constants.Remotes.CurrencyChanged) :: RemoteEvent
 	local syncRemote = ReplicatedStorage:WaitForChild(Constants.Remotes.SyncInventory) :: RemoteEvent
+	local checkPassRemote = ReplicatedStorage:WaitForChild(Constants.Remotes.CheckGamePass) :: RemoteEvent
 
 	currRemote.OnClientEvent:Connect(function(dollars: number)
 		dollarsLabel.Text = "$ " .. formatNumber(dollars)
@@ -578,6 +622,14 @@ function UIController.Init()
 			populateStoreItems()
 		end
 	end)
+
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
+		function(purchasedPlayer: Player, passId: number, wasPurchased: boolean)
+			if purchasedPlayer == player and wasPurchased then
+				checkPassRemote:FireServer(passId)
+			end
+		end
+	)
 
 	print("[UIController] HUD and Store UI initialized.")
 end

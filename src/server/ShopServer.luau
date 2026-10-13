@@ -64,6 +64,37 @@ function ShopServer.Init()
 		end
 	end
 
+	-- Connect EconomyManager.ProfileLoaded to sync game passes
+	EconomyManager.ProfileLoaded:Connect(function(player: Player)
+		ShopServer.SyncGamePasses(player)
+	end)
+
+	for _, player in Players:GetPlayers() do
+		if EconomyManager.IsLoaded(player) then
+			ShopServer.SyncGamePasses(player)
+		end
+	end
+
+	-- MarketplaceService PromptGamePassPurchaseFinished for game pass purchases
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
+		function(player: Player, passId: number, wasPurchased: boolean)
+			if wasPurchased then
+				ShopServer.GrantGamePass(player, passId)
+			end
+		end
+	)
+
+	-- Handle CheckGamePass RemoteEvent from client
+	local checkPassRemote = ReplicatedStorage:FindFirstChild(Constants.Remotes.CheckGamePass) :: RemoteEvent?
+	if checkPassRemote then
+		checkPassRemote.OnServerEvent:Connect(function(player: Player, passId: any)
+			if typeof(passId) ~= "number" then
+				return
+			end
+			ShopServer.GrantGamePass(player, passId)
+		end)
+	end
+
 	print("[ShopServer] Shop and Monetization server initialized.")
 end
 
@@ -165,57 +196,202 @@ function ShopServer.GrantRobuxPurchase(player: Player, productId: number, purcha
 		end
 	end
 
-	-- Check Weapons
-	for weaponId, weapon in WeaponData do
-		if weapon.DevProductId == productId then
-			local saveOk = EconomyManager.SaveRobuxPurchase(player, purchaseId, function(copy)
-				copy.OwnedWeapons[weaponId] = true
-				copy.EquippedWeapon = weaponId
-				return true
-			end)
-			if saveOk then
-				ShopServer.GivePlayerWeaponTool(player, weaponId)
-			end
-			return saveOk
-		end
-	end
-
-	-- Check Skins
-	for skinId, skin in ShopData.Skins do
-		if skin.DevProductId == productId then
-			local saveOk = EconomyManager.SaveRobuxPurchase(player, purchaseId, function(copy)
-				copy.OwnedSkins[skinId] = true
-				copy.EquippedSkin = skinId
-				return true
-			end)
-			if saveOk then
-				-- B6: Call ShopServer.GivePlayerWeaponTool with the equipped weapon
-				local liveData = EconomyManager.GetPlayerData(player)
-				local equippedWeapon = if liveData then liveData.EquippedWeapon else "sledgehammer"
-				ShopServer.GivePlayerWeaponTool(player, equippedWeapon)
-			end
-			return saveOk
-		end
-	end
-
-	-- Check Auras
-	for auraId, aura in ShopData.Auras do
-		if aura.DevProductId == productId then
-			local saveOk = EconomyManager.SaveRobuxPurchase(player, purchaseId, function(copy)
-				copy.OwnedAuras[auraId] = true
-				copy.EquippedAura = auraId
-				return true
-			end)
-			if saveOk then
-				ShopServer.ApplyAura(player, auraId)
-			end
-			return saveOk
-		end
-	end
-
 	-- B3: For a ProductId that doesn't match any product, log a warn with the ProductId and return NotProcessedYet (false)
 	warn(string.format("[ShopServer] Unknown ProductId %d for UserId %d", productId, player.UserId))
 	return false
+end
+
+local function findItemByGamePassId(passId: number): { Category: string, Id: string, Info: any }?
+	for weaponId, weapon in WeaponData do
+		if weapon.GamePassId == passId then
+			return { Category = "Weapon", Id = weaponId, Info = weapon }
+		end
+	end
+	for skinId, skin in ShopData.Skins do
+		if skin.GamePassId == passId then
+			return { Category = "Skin", Id = skinId, Info = skin }
+		end
+	end
+	for auraId, aura in ShopData.Auras do
+		if aura.GamePassId == passId then
+			return { Category = "Aura", Id = auraId, Info = aura }
+		end
+	end
+	return nil
+end
+
+function ShopServer.GrantGamePass(player: Player, passId: number): boolean
+	local item = findItemByGamePassId(passId)
+	if not item then
+		warn(string.format("[ShopServer] Unknown GamePassId %d for UserId %d", passId, player.UserId))
+		return false
+	end
+
+	local playerData = EconomyManager.GetPlayerData(player)
+	if not playerData then
+		return false
+	end
+
+	local isOwned = false
+	if item.Category == "Weapon" then
+		isOwned = playerData.OwnedWeapons[item.Id] == true
+	elseif item.Category == "Skin" then
+		isOwned = playerData.OwnedSkins[item.Id] == true
+	elseif item.Category == "Aura" then
+		isOwned = playerData.OwnedAuras[item.Id] == true
+	end
+
+	if isOwned then
+		return true
+	end
+
+	local success, ownsPass = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
+	end)
+
+	if not success then
+		warn(
+			string.format(
+				"[ShopServer] UserOwnsGamePassAsync failed for UserId %d, GamePassId %d: %s",
+				player.UserId,
+				passId,
+				tostring(ownsPass)
+			)
+		)
+		return false
+	end
+
+	if not ownsPass then
+		return false
+	end
+
+	-- Check ownership again after the web call returns, because two calls can overlap
+	if not player:IsDescendantOf(Players) then
+		return false
+	end
+	playerData = EconomyManager.GetPlayerData(player)
+	if not playerData then
+		return false
+	end
+
+	local alreadyOwned = false
+	if item.Category == "Weapon" then
+		alreadyOwned = playerData.OwnedWeapons[item.Id] == true
+	elseif item.Category == "Skin" then
+		alreadyOwned = playerData.OwnedSkins[item.Id] == true
+	elseif item.Category == "Aura" then
+		alreadyOwned = playerData.OwnedAuras[item.Id] == true
+	end
+
+	if alreadyOwned then
+		return true
+	end
+
+	if item.Category == "Weapon" then
+		EconomyManager.UnlockWeapon(player, item.Id)
+		EconomyManager.EquipWeapon(player, item.Id)
+		ShopServer.GivePlayerWeaponTool(player, item.Id)
+	elseif item.Category == "Skin" then
+		EconomyManager.UnlockSkin(player, item.Id)
+		EconomyManager.EquipSkin(player, item.Id)
+		local currentWeapon = if playerData then playerData.EquippedWeapon else "sledgehammer"
+		ShopServer.GivePlayerWeaponTool(player, currentWeapon)
+	elseif item.Category == "Aura" then
+		EconomyManager.UnlockAura(player, item.Id)
+		EconomyManager.EquipAura(player, item.Id)
+		ShopServer.ApplyAura(player, item.Id)
+	end
+
+	return true
+end
+
+function ShopServer.SyncGamePasses(player: Player)
+	task.spawn(function()
+		local passItems = {}
+		for weaponId, weapon in WeaponData do
+			if weapon.GamePassId then
+				table.insert(passItems, { Category = "Weapon", Id = weaponId, PassId = weapon.GamePassId })
+			end
+		end
+		for skinId, skin in ShopData.Skins do
+			if skin.GamePassId then
+				table.insert(passItems, { Category = "Skin", Id = skinId, PassId = skin.GamePassId })
+			end
+		end
+		for auraId, aura in ShopData.Auras do
+			if aura.GamePassId then
+				table.insert(passItems, { Category = "Aura", Id = auraId, PassId = aura.GamePassId })
+			end
+		end
+
+		for _, item in passItems do
+			if not player:IsDescendantOf(Players) then
+				return
+			end
+
+			local playerData = EconomyManager.GetPlayerData(player)
+			local alreadyOwned = false
+			if playerData then
+				if item.Category == "Weapon" then
+					alreadyOwned = playerData.OwnedWeapons[item.Id] == true
+				elseif item.Category == "Skin" then
+					alreadyOwned = playerData.OwnedSkins[item.Id] == true
+				elseif item.Category == "Aura" then
+					alreadyOwned = playerData.OwnedAuras[item.Id] == true
+				end
+			end
+
+			if not alreadyOwned then
+				local maxAttempts = 3
+				local querySuccess = false
+				local ownsPass = false
+				local lastError: any = nil
+
+				for attempt = 1, maxAttempts do
+					if not player:IsDescendantOf(Players) then
+						return
+					end
+
+					local s, r = pcall(function()
+						return MarketplaceService:UserOwnsGamePassAsync(player.UserId, item.PassId)
+					end)
+					if s then
+						querySuccess = true
+						ownsPass = r == true
+						break
+					else
+						lastError = r
+						if attempt < maxAttempts then
+							task.wait(1)
+						end
+					end
+				end
+
+				if not querySuccess then
+					warn(
+						string.format(
+							"[ShopServer] UserOwnsGamePassAsync final failure for UserId %d, GamePassId %d after %d attempts: %s",
+							player.UserId,
+							item.PassId,
+							maxAttempts,
+							tostring(lastError)
+						)
+					)
+				elseif ownsPass then
+					if not player:IsDescendantOf(Players) then
+						return
+					end
+					if item.Category == "Weapon" then
+						EconomyManager.UnlockWeapon(player, item.Id)
+					elseif item.Category == "Skin" then
+						EconomyManager.UnlockSkin(player, item.Id)
+					elseif item.Category == "Aura" then
+						EconomyManager.UnlockAura(player, item.Id)
+					end
+				end
+			end
+		end
+	end)
 end
 
 function ShopServer.GivePlayerWeaponTool(player: Player, weaponId: string)

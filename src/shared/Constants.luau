@@ -20,6 +20,7 @@ local Constants = {
 		SyncInventory = "SyncInventory",
 		PlayDestructionFX = "PlayDestructionFX",
 		NotifyMessage = "NotifyMessage",
+		CheckGamePass = "CheckGamePass",
 	},
 	Settings = {
 		DebrisLifetime = 3.0,

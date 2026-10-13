@@ -2,6 +2,7 @@
 local Workspace = game:GetService("Workspace")
 
 local DestructionEngine = require(script.Parent.DestructionEngine)
+local KitLoader = require(script.Parent.KitLoader)
 
 local VillageGenerator = {}
 
@@ -57,6 +58,59 @@ local function createGround(
 	return part
 end
 
+type BuildingFootprint = {
+	name: string,
+	minX: number,
+	maxX: number,
+	minZ: number,
+	maxZ: number,
+}
+
+local buildingFootprints: { BuildingFootprint } = {}
+local treesSkipped = 0
+local bouldersSkipped = 0
+
+local function registerFootprint(name: string, minX: number, maxX: number, minZ: number, maxZ: number)
+	table.insert(buildingFootprints, {
+		name = name,
+		minX = minX,
+		maxX = maxX,
+		minZ = minZ,
+		maxZ = maxZ,
+	})
+end
+
+local function registerOrientedFootprint(name: string, origin: CFrame, halfWidth: number, halfLength: number)
+	local corners = {
+		origin * Vector3.new(-halfWidth, 0, -halfLength),
+		origin * Vector3.new(halfWidth, 0, -halfLength),
+		origin * Vector3.new(-halfWidth, 0, halfLength),
+		origin * Vector3.new(halfWidth, 0, halfLength),
+	}
+	local minX, maxX = math.huge, -math.huge
+	local minZ, maxZ = math.huge, -math.huge
+	for _, c in corners do
+		minX = math.min(minX, c.X)
+		maxX = math.max(maxX, c.X)
+		minZ = math.min(minZ, c.Z)
+		maxZ = math.max(maxZ, c.Z)
+	end
+	registerFootprint(name, minX, maxX, minZ, maxZ)
+end
+
+local function overlapsAnyBuilding(x: number, z: number, radius: number): boolean
+	for _, fp in buildingFootprints do
+		local closestX = math.clamp(x, fp.minX, fp.maxX)
+		local closestZ = math.clamp(z, fp.minZ, fp.maxZ)
+		local dx = x - closestX
+		local dz = z - closestZ
+		if (dx * dx + dz * dz) < (radius * radius) then
+			return true
+		end
+	end
+	return false
+end
+
 -- 1. Helper to build a Tudor-style Cottage
 local function buildTudorCottage(origin: CFrame, cottageId: string, name: string)
 	local model = Instance.new("Model")
@@ -65,6 +119,7 @@ local function buildTudorCottage(origin: CFrame, cottageId: string, name: string
 	DestructionEngine.RegisterStructure(cottageId, name, 35)
 
 	local w, l, h = 18, 22, 10
+	registerOrientedFootprint(name, origin, (w + 1) / 2, (l + 1) / 2)
 	local wallColor = Color3.fromRGB(235, 230, 215) -- Tudor Plaster
 	local beamColor = Color3.fromRGB(75, 45, 25) -- Dark Oak Timber
 	local thatchColor = Color3.fromRGB(150, 115, 65) -- Thatched Straw
@@ -239,6 +294,7 @@ local function buildShop(origin: CFrame, shopId: string, shopType: string)
 	DestructionEngine.RegisterStructure(shopId, shopType, 40)
 
 	local w, l, h = 22, 26, 12
+	registerOrientedFootprint(shopType .. " Shop", origin, (w + 1) / 2, (l + 1) / 2)
 	local stone = Color3.fromRGB(105, 105, 110)
 	local wood = Color3.fromRGB(80, 50, 30)
 
@@ -300,10 +356,11 @@ local function buildShop(origin: CFrame, shopId: string, shopType: string)
 		shopId
 	)
 
-	-- Colorful Shop Awning (e.g. Tavern Red, Bakery Yellow, Blacksmith Charcoal)
+	-- Colorful Shop Awning (e.g. Tavern Red, Bakery Yellow, General Store Green, Blacksmith Charcoal)
 	local awningColor = if shopType == "The Red Lion Tavern"
 		then Color3.fromRGB(180, 30, 30)
 		elseif shopType == "Village Bakery" then Color3.fromRGB(220, 180, 60)
+		elseif shopType == "Hamlet General Store" then Color3.fromRGB(50, 100, 60)
 		else Color3.fromRGB(45, 45, 50)
 
 	createPart(
@@ -374,7 +431,338 @@ local function buildShop(origin: CFrame, shopId: string, shopType: string)
 	end
 end
 
--- 3. Helper to build Farm with Barn & Windmill
+-- 3. Helper to build the North Green Village Church
+local function buildChurch(origin: CFrame)
+	local churchId = "church"
+	local model = Instance.new("Model")
+	model.Name = "Village Church"
+	model.Parent = villageFolder
+	DestructionEngine.RegisterStructure(churchId, "Village Church", 50)
+
+	-- Nave: length 44 in X, width 30 in Z, height 14 in Y
+	-- Tower: width 14 in X, length 14 in Z, height 28 in Y on west end
+	-- Nave center is at origin * CFrame.new(7, 0, 0)
+	-- Tower center is at origin * CFrame.new(-21, 0, 0)
+	-- Combined footprint bounds: X in [origin.X - 28.5, origin.X + 29.5], Z in [origin.Z - 15.5, origin.Z + 15.5]
+	registerFootprint(
+		"Village Church",
+		origin.Position.X - 28.5,
+		origin.Position.X + 29.5,
+		origin.Position.Z - 15.5,
+		origin.Position.Z + 15.5
+	)
+
+	local stoneColor = Color3.fromRGB(125, 125, 130)
+	local trimColor = Color3.fromRGB(150, 150, 155)
+	local slateColor = Color3.fromRGB(60, 60, 65)
+	local woodColor = Color3.fromRGB(80, 50, 30)
+
+	local naveLength = 44
+	local naveWidth = 30
+	local naveHeight = 14
+	local naveY = 2 + naveHeight / 2 -- 9
+
+	-- 1. Foundations & Floors (Non-destructible via createGround)
+	-- Nave Foundation & Floor
+	createGround(
+		model,
+		Vector3.new(naveLength + 1, 2, naveWidth + 1),
+		origin * CFrame.new(7, 1, 0),
+		Color3.fromRGB(105, 105, 110),
+		Enum.Material.Cobblestone,
+		"NaveFoundation"
+	)
+	createGround(
+		model,
+		Vector3.new(naveLength, 0.5, naveWidth),
+		origin * CFrame.new(7, 2.25, 0),
+		Color3.fromRGB(120, 120, 125),
+		Enum.Material.Cobblestone,
+		"NaveFloor"
+	)
+
+	-- Tower Foundation & Floor
+	createGround(
+		model,
+		Vector3.new(15, 2, 15),
+		origin * CFrame.new(-21, 1, 0),
+		Color3.fromRGB(105, 105, 110),
+		Enum.Material.Cobblestone,
+		"TowerFoundation"
+	)
+	createGround(
+		model,
+		Vector3.new(14, 0.5, 14),
+		origin * CFrame.new(-21, 2.25, 0),
+		Color3.fromRGB(120, 120, 125),
+		Enum.Material.Cobblestone,
+		"TowerFloor"
+	)
+
+	-- 2. Nave Walls (Destructible, stone)
+	-- North Wall
+	createPart(
+		model,
+		Vector3.new(naveLength, naveHeight, 1.5),
+		origin * CFrame.new(7, naveY, -naveWidth / 2),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"NaveNorthWall",
+		160,
+		40,
+		churchId
+	)
+	-- South Wall
+	createPart(
+		model,
+		Vector3.new(naveLength, naveHeight, 1.5),
+		origin * CFrame.new(7, naveY, naveWidth / 2),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"NaveSouthWall",
+		160,
+		40,
+		churchId
+	)
+	-- East Wall (Altar wall)
+	createPart(
+		model,
+		Vector3.new(1.5, naveHeight, naveWidth),
+		origin * CFrame.new(7 + naveLength / 2, naveY, 0),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"NaveEastWall",
+		180,
+		45,
+		churchId
+	)
+	-- West Wall (archway connecting nave to west tower)
+	createPart(
+		model,
+		Vector3.new(1.5, naveHeight, (naveWidth - 10) / 2),
+		origin * CFrame.new(7 - naveLength / 2, naveY, -naveWidth / 4 - 2.5),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"NaveWestWallLeft",
+		100,
+		25,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(1.5, naveHeight, (naveWidth - 10) / 2),
+		origin * CFrame.new(7 - naveLength / 2, naveY, naveWidth / 4 + 2.5),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"NaveWestWallRight",
+		100,
+		25,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(1.5, 4, 10),
+		origin * CFrame.new(7 - naveLength / 2, 2 + naveHeight - 2, 0),
+		trimColor,
+		Enum.Material.Cobblestone,
+		"NaveArchHeader",
+		80,
+		20,
+		churchId
+	)
+
+	-- 3. Square West Tower (Destructible, stone)
+	local towerWidth = 14
+	local towerHeight = 28
+	local towerWallY = 2 + towerHeight / 2 -- 16
+
+	-- North & South Tower Walls
+	createPart(
+		model,
+		Vector3.new(towerWidth, towerHeight, 1.5),
+		origin * CFrame.new(-21, towerWallY, -towerWidth / 2),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"TowerNorthWall",
+		200,
+		50,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(towerWidth, towerHeight, 1.5),
+		origin * CFrame.new(-21, towerWallY, towerWidth / 2),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"TowerSouthWall",
+		200,
+		50,
+		churchId
+	)
+
+	-- West Tower Wall (Entrance Portal & Oak Door)
+	createPart(
+		model,
+		Vector3.new(1.5, towerHeight, (towerWidth - 6) / 2),
+		origin * CFrame.new(-21 - towerWidth / 2, towerWallY, -(towerWidth / 4 + 1.5)),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"TowerPortalLeft",
+		120,
+		30,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(1.5, towerHeight, (towerWidth - 6) / 2),
+		origin * CFrame.new(-21 - towerWidth / 2, towerWallY, (towerWidth / 4 + 1.5)),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"TowerPortalRight",
+		120,
+		30,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(1.5, towerHeight - 8, 6),
+		origin * CFrame.new(-21 - towerWidth / 2, 2 + 8 + (towerHeight - 8) / 2, 0),
+		trimColor,
+		Enum.Material.Cobblestone,
+		"TowerPortalHeader",
+		100,
+		25,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(0.6, 7.8, 5.8),
+		origin * CFrame.new(-21 - towerWidth / 2, 2 + 3.9, 0),
+		woodColor,
+		Enum.Material.WoodPlanks,
+		"ChurchOakDoor",
+		50,
+		15,
+		churchId
+	)
+
+	-- Tower Upper East Wall (above nave roof)
+	createPart(
+		model,
+		Vector3.new(1.5, 14, towerWidth),
+		origin * CFrame.new(-21 + towerWidth / 2, 2 + 14 + 7, 0),
+		stoneColor,
+		Enum.Material.Cobblestone,
+		"TowerEastUpperWall",
+		150,
+		35,
+		churchId
+	)
+
+	-- Tower Belfry Roof
+	createPart(
+		model,
+		Vector3.new(towerWidth + 1, 1.5, towerWidth + 1),
+		origin * CFrame.new(-21, 2 + towerHeight + 0.75, 0),
+		slateColor,
+		Enum.Material.Slate,
+		"TowerBelfryRoof",
+		130,
+		35,
+		churchId
+	)
+
+	-- Tower Pinnacles (4 corners)
+	local pinnacleOffsets = {
+		Vector3.new(-6, 0, -6),
+		Vector3.new(6, 0, -6),
+		Vector3.new(-6, 0, 6),
+		Vector3.new(6, 0, 6),
+	}
+	for idx, pOff in pinnacleOffsets do
+		createPart(
+			model,
+			Vector3.new(2, 3.5, 2),
+			origin * CFrame.new(-21 + pOff.X, 2 + towerHeight + 1.5 + 1.75, pOff.Z),
+			trimColor,
+			Enum.Material.Cobblestone,
+			"TowerPinnacle_" .. idx,
+			40,
+			10,
+			churchId
+		)
+	end
+
+	-- 4. Steep Slate Roof over Nave (Pitched Gable Roof)
+	local roofSlopeY = 2 + naveHeight + 4.5
+	createPart(
+		model,
+		Vector3.new(naveLength + 2, 1.5, 19.5),
+		origin * CFrame.new(7, roofSlopeY, -naveWidth / 4) * CFrame.Angles(math.rad(-40), 0, 0),
+		slateColor,
+		Enum.Material.Slate,
+		"NaveRoofSlopeN",
+		140,
+		35,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(naveLength + 2, 1.5, 19.5),
+		origin * CFrame.new(7, roofSlopeY, naveWidth / 4) * CFrame.Angles(math.rad(40), 0, 0),
+		slateColor,
+		Enum.Material.Slate,
+		"NaveRoofSlopeS",
+		140,
+		35,
+		churchId
+	)
+	createPart(
+		model,
+		Vector3.new(naveLength + 2, 1.5, 2),
+		origin * CFrame.new(7, 2 + naveHeight + 9.5, 0),
+		Color3.fromRGB(50, 50, 55),
+		Enum.Material.Slate,
+		"NaveRoofRidgeCap",
+		90,
+		25,
+		churchId
+	)
+
+	-- 5. Interior Church Props (Destructible)
+	-- Stone Altar
+	createPart(
+		model,
+		Vector3.new(4, 3.5, 10),
+		origin * CFrame.new(7 + naveLength / 2 - 5, 2 + 1.75, 0),
+		Color3.fromRGB(140, 140, 145),
+		Enum.Material.Cobblestone,
+		"ChurchAltar",
+		120,
+		30,
+		churchId
+	)
+
+	-- Wooden Pews
+	for _, zSide in { -6, 6 } do
+		for row = 1, 3 do
+			local pewX = -5 + (row * 8)
+			createPart(
+				model,
+				Vector3.new(3, 2.5, 7),
+				origin * CFrame.new(pewX, 2 + 1.25, zSide),
+				Color3.fromRGB(90, 55, 30),
+				Enum.Material.Wood,
+				"ChurchPew_" .. row .. "_" .. (if zSide < 0 then "N" else "S"),
+				35,
+				10,
+				churchId
+			)
+		end
+	end
+end
+
+-- 4. Helper to build Farm with Barn & Windmill
 local function buildFarm(farmCenter: CFrame)
 	local barnId = "farm_barn"
 	local windmillId = "farm_windmill"
@@ -386,6 +774,7 @@ local function buildFarm(farmCenter: CFrame)
 	DestructionEngine.RegisterStructure(barnId, "Farm Barn", 40)
 
 	local bw, bl, bh = 28, 36, 16
+	registerOrientedFootprint("Farm Barn", farmCenter, (bw + 2) / 2, (bl + 2) / 2)
 	local barnRed = Color3.fromRGB(165, 35, 30)
 	local whiteTrim = Color3.fromRGB(240, 240, 245)
 
@@ -480,6 +869,7 @@ local function buildFarm(farmCenter: CFrame)
 
 	-- The Old Windmill
 	local wmOrigin = farmCenter * CFrame.new(45, 0, 0)
+	registerOrientedFootprint("Farm Windmill", wmOrigin, 9, 9)
 	local wmModel = Instance.new("Model")
 	wmModel.Name = "Village Windmill"
 	wmModel.Parent = villageFolder
@@ -520,7 +910,7 @@ local function buildFarm(farmCenter: CFrame)
 	end
 end
 
--- 4. Helper to build Dense Woods / Forest Area
+-- 5. Helper to build Dense Woods / Forest Area
 local function buildForest(forestOrigin: CFrame)
 	local woodsId = "village_woods"
 	local woodsModel = Instance.new("Model")
@@ -540,6 +930,13 @@ local function buildForest(forestOrigin: CFrame)
 		local x = math.random(-75, 75)
 		local z = math.random(-75, 75)
 		local treeCF = forestOrigin * CFrame.new(x, 0, z)
+		local canopySize = math.random(10, 16)
+		local treeRadius = canopySize / 2
+
+		if overlapsAnyBuilding(treeCF.Position.X, treeCF.Position.Z, treeRadius) then
+			treesSkipped += 1
+			continue
+		end
 
 		local trunkHeight = math.random(12, 18)
 		local trunkWidth = math.random(2, 4)
@@ -559,7 +956,6 @@ local function buildForest(forestOrigin: CFrame)
 
 		-- Canopy (Stacked Spheres/Boxes)
 		local leafColor = leafColors[math.random(1, #leafColors)]
-		local canopySize = math.random(10, 16)
 		createPart(
 			woodsModel,
 			Vector3.new(canopySize, canopySize * 0.75, canopySize),
@@ -578,10 +974,18 @@ local function buildForest(forestOrigin: CFrame)
 		local bx = math.random(-70, 70)
 		local bz = math.random(-70, 70)
 		local bSize = math.random(5, 10)
+		local boulderRadius = bSize / 2
+		local boulderCF = forestOrigin * CFrame.new(bx, bSize * 0.3, bz)
+
+		if overlapsAnyBuilding(boulderCF.Position.X, boulderCF.Position.Z, boulderRadius) then
+			bouldersSkipped += 1
+			continue
+		end
+
 		createPart(
 			woodsModel,
 			Vector3.new(bSize, bSize * 0.6, bSize * 0.8),
-			forestOrigin * CFrame.new(bx, bSize * 0.3, bz),
+			boulderCF,
 			Color3.fromRGB(95, 95, 100),
 			Enum.Material.Slate,
 			"ForestBoulder_" .. b,
@@ -592,13 +996,15 @@ local function buildForest(forestOrigin: CFrame)
 	end
 end
 
--- 5. Helper to build Town Square (Well, Notice Board, Street Lamps)
+-- 6. Helper to build Town Square (Well, Notice Board, Street Lamps)
 local function buildTownSquare(squareOrigin: CFrame)
 	local squareId = "town_square"
 	local squareModel = Instance.new("Model")
 	squareModel.Name = "Town Square"
 	squareModel.Parent = villageFolder
 	DestructionEngine.RegisterStructure(squareId, "Town Square", 30)
+
+	registerOrientedFootprint("Town Square", squareOrigin, 30, 30)
 
 	-- Cobblestone Plaza Floor
 	createGround(
@@ -668,7 +1074,7 @@ local function buildTownSquare(squareOrigin: CFrame)
 	end
 end
 
--- 6. Helper to build Vintage Delivery Van / Farm Wagon
+-- 7. Helper to build Vintage Delivery Van / Farm Wagon
 local function buildVehicles(origin: CFrame)
 	local vehicleId = "village_vehicles"
 	local vehModel = Instance.new("Model")
@@ -678,6 +1084,7 @@ local function buildVehicles(origin: CFrame)
 
 	-- Vintage Delivery Van
 	local vanCF = origin * CFrame.new(12, 0, -18) * CFrame.Angles(0, math.rad(-25), 0)
+	registerOrientedFootprint("Delivery Van", vanCF, 4, 8)
 	-- Van Chassis & Body
 	createPart(
 		vehModel,
@@ -732,6 +1139,7 @@ local function buildVehicles(origin: CFrame)
 
 	-- Wooden Farm Wagon
 	local wagonCF = origin * CFrame.new(-18, 0, 16) * CFrame.Angles(0, math.rad(40), 0)
+	registerOrientedFootprint("Farm Wagon", wagonCF, 4, 6)
 	createPart(
 		vehModel,
 		Vector3.new(6, 2.5, 10),
@@ -761,6 +1169,11 @@ local function buildVehicles(origin: CFrame)
 end
 
 function VillageGenerator.Generate()
+	local startTime = os.clock()
+	buildingFootprints = {}
+	treesSkipped = 0
+	bouldersSkipped = 0
+
 	-- Create or clean up Village container
 	local existing = Workspace:FindFirstChild("OldEnglishVillage")
 	if existing then
@@ -787,18 +1200,62 @@ function VillageGenerator.Generate()
 	buildTudorCottage(CFrame.new(-16, 0, 55), "cottage_2", "Weaver Cottage")
 	buildTudorCottage(CFrame.new(20, 0, 55), "cottage_3", "Thatcher Cottage")
 
-	-- 4. The Farm (Barn, Windmill, Hay Bales, Fences)
+	-- 4. East Street Cottages (facing West towards street at x ≈ 80)
+	buildTudorCottage(CFrame.new(100, 0, -60) * CFrame.Angles(0, math.rad(-90), 0), "cottage_east_1", "Millers Cottage")
+	buildTudorCottage(
+		CFrame.new(100, 0, 10) * CFrame.Angles(0, math.rad(-90), 0),
+		"cottage_east_2",
+		"Carpenters Cottage"
+	)
+	buildTudorCottage(CFrame.new(100, 0, 80) * CFrame.Angles(0, math.rad(-90), 0), "cottage_east_3", "Bakers Cottage")
+
+	-- 5. North Green Church
+	buildChurch(CFrame.new(30, 0, -125))
+
+	-- 6. South Row Cottages (facing North towards Town Square)
+	buildTudorCottage(CFrame.new(-40, 0, 125) * CFrame.Angles(0, math.rad(180), 0), "cottage_south_1", "Meadow Cottage")
+	buildTudorCottage(CFrame.new(0, 0, 125) * CFrame.Angles(0, math.rad(180), 0), "cottage_south_2", "Orchard Cottage")
+	buildTudorCottage(CFrame.new(40, 0, 125) * CFrame.Angles(0, math.rad(180), 0), "cottage_south_3", "Willow Cottage")
+
+	-- 7. South-West Hamlet (2 cottages facing East, 1 shop facing West)
+	buildTudorCottage(CFrame.new(-150, 0, 110) * CFrame.Angles(0, math.rad(90), 0), "cottage_hamlet_1", "Brook Cottage")
+	buildTudorCottage(CFrame.new(-120, 0, 160) * CFrame.Angles(0, math.rad(90), 0), "cottage_hamlet_2", "Fern Cottage")
+	buildShop(CFrame.new(-80, 0, 150) * CFrame.Angles(0, math.rad(-90), 0), "shop_hamlet", "Hamlet General Store")
+
+	-- 8. The Farm (Barn, Windmill, Hay Bales)
 	local farmOrigin = CFrame.new(0, 0, -75)
 	buildFarm(farmOrigin)
 
-	-- 5. Ancient Woods & Forest
+	-- 9. Vehicles (Delivery Van & Wooden Wagon)
+	buildVehicles(townCenter)
+
+	-- 10. Blender Pilot Cottage Kit
+	local pilotModel = KitLoader.Spawn("cottage_tudor", villageFolder, CFrame.new(-195, 0, -120), "pilot_cottage")
+	if pilotModel then
+		registerOrientedFootprint("Pilot Cottage", CFrame.new(-195, 0, -120), 9, 11)
+	end
+
+	-- 11. Ancient Woods & Forest (skips trees/boulders that overlap registered footprints)
 	local woodsOrigin = CFrame.new(-95, 0, 0)
 	buildForest(woodsOrigin)
 
-	-- 6. Vehicles (Delivery Van & Wooden Wagon)
-	buildVehicles(townCenter)
+	local generationTime = os.clock() - startTime
+	local partCount = 0
+	for _, desc in villageFolder:GetDescendants() do
+		if desc:IsA("BasePart") then
+			partCount += 1
+		end
+	end
 
-	print("[VillageGenerator] Old English Village generation complete! All structures registered.")
+	print(
+		string.format(
+			"[VillageGenerator] Old English Village generation complete! Generated %d parts in %.3f seconds (%d trees skipped, %d boulders skipped). All structures registered.",
+			partCount,
+			generationTime,
+			treesSkipped,
+			bouldersSkipped
+		)
+	)
 end
 
 return VillageGenerator

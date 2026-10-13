@@ -58,15 +58,18 @@ local RIVER_POINTS = {
 	{ -290, -330 },
 	{ -285, -150 },
 	{ -270, 0 },
-	{ -250, 120 },
-	{ -215, 230 },
-	{ -120, 245 },
-	{ 0, 245 },
-	{ 120, 235 },
-	{ 230, 150 },
-	{ 300, 80 },
-	{ 340, 120 },
-	{ 300, 200 },
+	{ -265, 120 },
+	{ -265, 200 },
+	{ -215, 250 },
+	{ -120, 255 },
+	{ 0, 255 },
+	{ 130, 260 },
+	{ 200, 170 },
+	{ 210, 90 },
+	{ 290, 60 },
+	{ 330, 70 },
+	{ 320, 110 },
+	{ 300, 150 },
 }
 
 local RIVER_SEGMENTS: { RiverSegment } = {}
@@ -102,12 +105,12 @@ local function getDistanceToRiverPolyline(x: number, z: number): number
 	return minDist
 end
 
--- Lake specification: Centre (300, 200), radius 70
+-- Lake specification: Centre (300, 240), radius 110, flat basin radius 80
 -- Surface at y = -2, basin floor at y = -10
 local LAKE_CENTER_X = 300
-local LAKE_CENTER_Z = 200
-local LAKE_RADIUS = 70
-local LAKE_INNER_RADIUS = 46
+local LAKE_CENTER_Z = 240
+local LAKE_RADIUS = 110
+local LAKE_INNER_RADIUS = 80
 local LAKE_SURFACE_Y = -2
 local LAKE_FLOOR_Y = -10
 

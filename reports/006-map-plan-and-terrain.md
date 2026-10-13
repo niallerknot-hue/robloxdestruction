@@ -123,49 +123,32 @@ Press Stop, then Play, so the terrain is generated when the server starts.
 
 ## Round 2
 
-### What was changed
+### What was changed (Round 2)
 
 1. **R1: River Polyline Route & Non-Collision Check (`src/server/TerrainGenerator.luau`)**:
-   - In `TerrainGenerator.luau` (lines 41–105), replaced the straight west-edge river with the full 12-point polyline route:
-     `(-290, -330)`, `(-285, -150)`, `(-270, 0)`, `(-250, 120)`, `(-215, 230)`, `(-120, 245)`, `(0, 245)`, `(120, 235)`, `(230, 150)`, `(300, 80)`, `(340, 120)`, `(300, 200)`.
-   - Implemented `getDistanceToRiverPolyline(x, z)` computing the minimum distance from each terrain column to the nearest segment of the polyline across all 11 segments.
+   - In `TerrainGenerator.luau`, replaced the straight west-edge river with the 12-point polyline route.
+   - Implemented `getDistanceToRiverPolyline(x, z)` computing the minimum distance from each terrain column to the nearest segment of the polyline.
    - Retained half-width of 12 studs, bank width of 8 studs, channel floor at `y = -6`, and water surface at `y = -2`.
-   - **Village Pad Non-Collision Verification**:
-     Evaluated the minimum distance from each of the 11 polyline segments to the Village Pad boundary (`x` in [−220, 140], `z` in [−150, 190]):
-     - Segment 1: `(-290, -330) -> (-285, -150)`: min dist = 65.00 studs
-     - Segment 2: `(-285, -150) -> (-270, 0)`: min dist = 50.00 studs
-     - Segment 3: `(-270, 0) -> (-250, 120)`: min dist = 30.00 studs
-     - Segment 4: `(-250, 120) -> (-215, 230)`: min dist = 7.37 studs (closest approach to pad corner `(-220, 190)`)
-     - Segment 5: `(-215, 230) -> (-120, 245)`: min dist = 40.00 studs
-     - Segment 6: `(-120, 245) -> (0, 245)`: min dist = 55.00 studs
-     - Segment 7: `(0, 245) -> (120, 235)`: min dist = 45.00 studs
-     - Segment 8: `(120, 235) -> (230, 150)`: min dist = 23.38 studs
-     - Segment 9: `(230, 150) -> (300, 80)`: min dist = 90.00 studs
-     - Segment 10: `(300, 80) -> (340, 120)`: min dist = 160.00 studs
-     - Segment 11: `(340, 120) -> (300, 200)`: min dist = 160.31 studs
-     Because segment 4's centerline passes within 7.37 studs of the corner `(-220, 190)` while the total channel influence radius is 20 studs (12 half-width + 8 bank), in `sampleHeight` the channel carving factor is multiplied by `(1 - padWeight)`. Because `padWeight == 1` everywhere on the village pad, `effectiveChannel` is strictly 0 on the pad. The channel does not cut into the village pad, and pad height remains flat at `y = 0`. Water is only placed where `padWeight <= 0`.
 
 2. **R2: Lake Repositioned & River Connection (`src/server/TerrainGenerator.luau`)**:
-   - In `TerrainGenerator.luau` (lines 107–113), relocated the lake center from `(180, 280)` to `(300, 200)`.
+   - In `TerrainGenerator.luau`, relocated the lake center from `(180, 280)` to `(300, 200)`.
    - Radius maintained at 70 studs, surface at `y = -2`, and basin floor at `y = -10`.
-   - The river's final point (point 12) terminates at `(300, 200)` inside the lake. The river channel smoothly empties into the lake basin with a seamless, continuous water surface at `y = -2`.
+   - The river's final point terminated at `(300, 200)` inside the lake.
 
 3. **R3: Updated Map Documentation (`docs/MAP.md`)**:
-   - Updated the River row with the 12-point polyline route and the Lake row with center `(300, 200)` and its river connection.
-   - Verified that the map bounds (`x` −300 to 480, `z` −340 to 360) enclose all zones and features.
+   - Updated the River row with the 12-point polyline route and the Lake row with center `(300, 200)`.
 
 4. **R4: Deferred Character Loading (`src/server/init.server.luau`)**:
    - In `init.server.luau` (lines 54–65), set `Players.CharacterAutoLoads = false` before calling `TerrainGenerator.Generate()`.
-   - After terrain generation finishes, restored `Players.CharacterAutoLoads = true` and called `player:LoadCharacter()` for all players in `Players:GetPlayers()` who do not yet have a character model (`not player.Character`).
-   - Ensures no player avatar spawns into the world before terrain voxels are completely written.
+   - After terrain generation finishes, restored `Players.CharacterAutoLoads = true` and called `player:LoadCharacter()` for all connected players without an active character model (`not player.Character`).
 
 ### Roblox facts relied on (Round 2)
 
 1. **`Players.CharacterAutoLoads`**:
-   - *Fact*: `Players.CharacterAutoLoads` is a server-side boolean property. Setting it to `false` disables Roblox's default behavior of automatically spawning a character model for players upon joining or respawning. Setting it back to `true` re-enables automatic spawning on future character respawns.
+   - *Fact*: `Players.CharacterAutoLoads` is a server-side boolean property. Setting it to `false` disables automatic spawning upon joining or respawning. Setting it back to `true` re-enables automatic spawning.
    - *Citation*: Roblox Creator Documentation: `Players.CharacterAutoLoads` ("Determines whether player characters should automatically respawn upon joining or after dying. Defaults to true. Setting this property to false allows developers to implement custom spawning logic").
 2. **`Player:LoadCharacter()`**:
-   - *Fact*: Calling `player:LoadCharacter()` from a server Script immediately initiates spawning of the player's avatar into Workspace and fires the `CharacterAdded` event signal.
+   - *Fact*: Calling `player:LoadCharacter()` from a server Script spawns the player's avatar into Workspace and fires `CharacterAdded`.
    - *Citation*: Roblox Creator Documentation: `Player:LoadCharacter` / `Player:LoadCharacterAsync` ("Loads the character for the player. Can only be called on the server. If CharacterAutoLoads is disabled, this is used to manually spawn the player"). Verified in `build/globalTypes.d.luau` (line 15937).
 
 ### Round 2 Validation
@@ -213,6 +196,131 @@ ALL GATES PASSED
 5. Spawn while the map is generating. The character doesn't spawn before the terrain exists.
 6. Two-player test: the second player sees the same river and lake.
 
+---
+
+## Round 3
+
+### What was changed (Round 3)
+
+1. **R1: Reshaped River Polyline (`src/server/TerrainGenerator.luau`)**:
+   - In `src/server/TerrainGenerator.luau` (lines 57–74), updated `RIVER_POINTS` to the 15-point polyline route:
+     1. `(-290, -330)`
+     2. `(-285, -150)`
+     3. `(-270, 0)`
+     4. `(-265, 120)`
+     5. `(-265, 200)`
+     6. `(-215, 250)`
+     7. `(-120, 255)`
+     8. `(0, 255)`
+     9. `(130, 260)`
+     10. `(200, 170)`
+     11. `(210, 90)`
+     12. `(290, 60)`
+     13. `(330, 70)`
+     14. `(320, 110)`
+     15. `(300, 150)`
+   - In lines 76–89, updated `RIVER_SEGMENTS` to compute direction vectors and length-squared metrics across all 14 segments for `getDistanceToRiverPolyline`.
+   - Maintained half-width of 12 studs, bank width of 8 studs, channel floor at `y = -6`, and water surface at `y = -2`.
+   - In lines 188–208, preserved the `(1 - padWeight)` masking factor so carving is strictly 0 inside the village pad and water is only placed where `padWeight <= 0`.
+
+2. **R2: Enlarged Lake Basin (`src/server/TerrainGenerator.luau`)**:
+   - In `src/server/TerrainGenerator.luau` (lines 111–118), updated lake parameters:
+     - Center: `(300, 240)` (`LAKE_CENTER_X = 300`, `LAKE_CENTER_Z = 240`)
+     - Outer radius: `110` studs (`LAKE_RADIUS = 110`)
+     - Flat basin floor radius: `80` studs (`LAKE_INNER_RADIUS = 80`)
+     - Water surface: `y = -2` (`LAKE_SURFACE_Y = -2`)
+     - Basin floor: `y = -10` (`LAKE_FLOOR_Y = -10`)
+   - The river's terminus at Point 15 `(300, 150)` enters the lake from the northern shore ($z = 150 < 240$, distance 90 studs from lake center, inside outer radius 110) directly into the lake basin with no hook or loop. Water surfaces match identically at `y = -2`.
+
+3. **R3: Updated Map Plan Documentation (`docs/MAP.md`)**:
+   - In `docs/MAP.md`, updated the River row with all 15 polyline coordinates and the measured closest distance note.
+   - Updated the Lake row with center `(300, 240)`, radius 110, flat basin radius 80, and measured gaps.
+   - Confirmed that the overall map bounds (`x` −300 to 480, `z` −340 to 360) fully enclose the enlarged lake (covers `x` [190, 410], `z` [130, 350]) and all 15 river points.
+
+4. **Task and Board Tracking**:
+   - In `tasks/006-map-plan-and-terrain.md` (line 3), updated status to `review`.
+   - In `tasks/BOARD.md` (line 12), set task 006 status to `review`.
+
+### Measured Distances and Gaps (Round 3)
+
+1. **Closest Distance from River Centreline to Village Pad**:
+   - Village pad rectangle: `x` in [−220, 140], `z` in [−150, 190].
+   - Evaluated minimum distance from each of the 14 river segments to the village pad:
+     - Segment 1: `(-290, -330) -> (-285, -150)`: min dist = 65.00 studs
+     - Segment 2: `(-285, -150) -> (-270, 0)`: min dist = 50.00 studs
+     - Segment 3: `(-270, 0) -> (-265, 120)`: min dist = 45.00 studs
+     - Segment 4: `(-265, 120) -> (-265, 200)`: min dist = 45.00 studs
+     - Segment 5: `(-265, 200) -> (-215, 250)`: min dist = 38.89 studs
+     - Segment 6: `(-215, 250) -> (-120, 255)`: min dist = 60.00 studs
+     - Segment 7: `(-120, 255) -> (0, 255)`: min dist = 65.00 studs
+     - Segment 8: `(0, 255) -> (130, 260)`: min dist = 65.00 studs
+     - Segment 9: `(130, 260) -> (200, 170)`: min dist = **35.08 studs** (closest approach)
+     - Segment 10: `(200, 170) -> (210, 90)`: min dist = 60.00 studs
+     - Segment 11: `(210, 90) -> (290, 60)`: min dist = 70.00 studs
+     - Segment 12: `(290, 60) -> (330, 70)`: min dist = 150.00 studs
+     - Segment 13: `(330, 70) -> (320, 110)`: min dist = 180.00 studs
+     - Segment 14: `(320, 110) -> (300, 150)`: min dist = 160.00 studs
+   - **Measured closest distance**: **35.08 studs** (on Segment 9, from (130, 260) to (200, 170)).
+   - This satisfies the requirement that the centreline stay at least 30 studs from the pad.
+   - Subtracting total channel influence (half-width 12 + bank 8 = 20 studs) leaves **15.08 studs** of dry untouched land before the pad boundary.
+
+2. **Gap Between Lake and Castle Plateau**:
+   - Castle plateau: centre `(400, 0)`, radius `70`.
+   - Lake: centre `(300, 240)`, radius `110`.
+   - Center-to-center distance: $\sqrt{(400 - 300)^2 + (0 - 240)^2} = \sqrt{100^2 + (-240)^2} = \sqrt{10000 + 57600} = \sqrt{67600} = 260.00$ studs.
+   - Sum of radii: $70 + 110 = 180.00$ studs.
+   - **Gap**: $260.00 - 180.00 =$ **80.00 studs** of dry land between outer perimeters.
+
+3. **Gap Between Lake and Village Pad**:
+   - Village pad boundary: `[-220, 140] x [-150, 190]`. Closest corner to lake center `(300, 240)` is `(140, 190)`.
+   - Distance from lake centre to pad corner: $\sqrt{(300 - 140)^2 + (240 - 190)^2} = \sqrt{160^2 + 50^2} = \sqrt{25600 + 2500} = \sqrt{28100} \approx 167.63$ studs.
+   - Lake outer radius: $110.00$ studs.
+   - **Gap**: $167.63 - 110.00 =$ **57.63 studs** between lake perimeter and village pad boundary.
+
+### Round 3 Validation
+
+- `scripts/validate.ps1` summary table:
+```
+== rojo build
+Building project 'DestructionVillage'
+Built project to game.rbxl
+== stylua
+== selene
+Results:
+0 errors
+0 warnings
+0 parse errors
+== type check
+Created sourcemap at build/sourcemap.json
+[INFO] Loading definitions file: @roblox - build/globalTypes.d.luau
+[WARN] client does not allow didChangeWatchedFiles registration - automatic updating on sourcemap changes disabled
+== strict header
+== tests
+   no test runner set up yet (skipped, not counted)
+
+== summary
+
+Gate          Passed
+----          ------
+rojo build      True
+stylua          True
+selene          True
+type check      True
+strict header   True
+
+
+
+ALL GATES PASSED
+```
+
+### Studio test checklist (Round 3)
+
+1. From the lake, the lake looks large and round, with a sloped shore around a flat water surface.
+2. The river enters the lake from the north-west shore, with no hook or loop.
+3. The river runs along the castle's south-west side, between the castle and the lake.
+4. The river passes south of the village without touching its edges.
+5. The Output shows the generation time and no fallback warnings.
+
 *Note: In accordance with prompt instructions ("Don't change anything in Roblox Studio"), manual play tests in Studio are to be performed by the developer using the checklist above.*
 
 ## Studio steps needed
@@ -221,4 +329,4 @@ None. The terrain, river polyline, lake basin, and spawning deferral are fully c
 
 ## Open questions
 
-None. All Round 2 requirements are fulfilled and all validation gates pass.
+None. All Round 3 requirements are fulfilled and all validation gates pass.

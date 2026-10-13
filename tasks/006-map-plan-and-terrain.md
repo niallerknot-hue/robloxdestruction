@@ -108,3 +108,31 @@ Round 2 Studio checklist (add to the report, after the round 1 checklist):
 4. The river flows into the lake. The river and the lake share one water surface, with no step or gap.
 5. Spawn while the map is generating. The character doesn't spawn before the terrain exists.
 6. Two-player test: the second player sees the same river and lake.
+
+## Round 3 (after the camera check)
+
+Round 2 works: the lake is round and the river reaches it. The river's end hooks back on itself, and the lake is too small for a lake house. Round 3 changes both.
+
+Files allowed in round 3: `docs/MAP.md`, `src/server/TerrainGenerator.luau`, `reports/006-map-plan-and-terrain.md`, `tasks/BOARD.md`, and the status line of this spec.
+
+- **R1. Reshape the river.** Replace the river centreline with these 15 points, in order, as x and z in studs:
+  (−290, −330), (−285, −150), (−270, 0), (−265, 120), (−265, 200), (−215, 250), (−120, 255), (0, 255), (130, 260), (200, 170), (210, 90), (290, 60), (330, 70), (320, 110), (300, 150).
+  The route runs west of the village, south of the village, north-east between the village and the lake, along the castle's south-west side, and then down into the lake. Keep the half-width of 12, the bank of 8, the channel floor at y = −6, and the surface at y = −2.
+  The river centreline must stay at least 30 studs from the village pad rectangle (x −220 to 140, z −150 to 190). Measure the closest distance and put it in the report.
+- **R2. Make the lake bigger.** Set the lake centre to (300, 240), the radius to 110, the flat basin radius to 80, the surface to −2, and the basin floor to −10. The lake must stay clear of the castle plateau (centre (400, 0), radius 70) and of the village pad. Report the gaps.
+- **R3. Update `docs/MAP.md`.** Update the river route, the lake, and the bounds if needed. The bounds (x −300 to 480, z −340 to 360) must still contain everything.
+
+Round 3 acceptance criteria:
+
+- [ ] The river follows all 15 points, in order, and its centreline is at least 30 studs from the village pad. The report gives the measured distance.
+- [ ] The lake is at (300, 240) with radius 110, and it doesn't overlap the castle plateau or the pad. The report gives the gaps.
+- [ ] `docs/MAP.md` matches the code.
+- [ ] `scripts/validate.ps1` passes all gates.
+
+Round 3 Studio checklist (add to the report):
+
+1. From the lake, the lake looks large and round, with a sloped shore around a flat water surface.
+2. The river enters the lake from the north-west shore, with no hook or loop.
+3. The river runs along the castle's south-west side, between the castle and the lake.
+4. The river passes south of the village without touching its edges.
+5. The Output shows the generation time and no fallback warnings.
